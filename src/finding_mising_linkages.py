@@ -1,25 +1,43 @@
-from ntpath import join
-from pathlib import Path
-import re
-import pyodbc
-import shapely
-
 import pandas as pd
-import numpy as np
-import geopandas as gpd
+from pathlib import Path
 
 import lib_database_create as libdb
-import linkages as link
 
-
+data = "./data/linkages_table/"
+critical_levels = "APIS-interest-feature-critical-load-linkages_simplBB.xlsx"
+levels_tab = "LINKAGES-FEATURE to CLOADS"
 linkages_output = './output/link_options/'
+site_names = "sitename_code.csv"
+site_features = "feature_contry_v2.csv"
 
-feat_name_dict = link.create_feat_dictionary()
-site_name_dict = link.create_site_dictionary()
+habitat_interests = ["Habitat (site specific)", "Habitat"]
 
 ########################################################################
 # library of functions for making the feat-habitatoptions df
 ########################################################################
+
+
+def create_feat_dictionary(data_dir=data, file_name=critical_levels,
+                           tab_name=levels_tab):
+    '''creating a dictionary of code to layname of the features. the
+    initial datafram must have the INTEReSTCODE and INTERESTLAYNAME
+    columns
+    '''
+
+    df = pd.read_excel(data_dir+file_name, tab_name)
+    df = df[['INTERESTCODE', 'INTERESTLAYNAME']]
+    return(libdb._create_dictionary_from_df(df))
+
+
+def create_site_dictionary(data_dir=data, file_name=site_names):
+    '''creating a dictionary of sitecode to site name. the
+    initial datafram must have the SITECODE and SITENAME columns
+    '''
+
+    df = pd.read_csv(data_dir+file_name, encoding="ISO-8859-1")
+    df = df[['SITECODE', 'SITENAME']]
+    return(libdb._create_dictionary_from_df(df))
+
 
 def _get_dup_feats(df):
     '''finds all the feature-feature type combos which have more than
@@ -40,14 +58,16 @@ def _fix_habitat_strings(df):
     formatting issues'''
 
     # Some of the habitats can't be assigned, they are changed to a blank
-    replacements = {'__': '_',
+    replacements = {
+        '__': '_',
         'No critical load has not assigned for this feature, please \
             seek site specific advice': '',
         'Not Sensitive': '',
         'Designated feature/feature habitat not sensitive to eutrophi\
             cation': '',
         'No broad habitat assigned': '',
-        "Species' broad habitat not sensitive to eutrophication": ""}
+        "Species' broad habitat not sensitive to eutrophication": ""
+        }
     df = df.replace(replacements, regex=True)
 
     # where there is no data in a column, we get extra underscores
@@ -76,7 +96,7 @@ def _create_options_df(df):
         # and convert into proper names
         feat_list = [feat, feat_name_dict[feat.split(';')[0]]]
         # if I want to include the type, reconbine with the feat_name_dict
-        #feat_list = [feat_name, feat_name_dict[feat_name]+';'+feat.split(';')[1]]
+        # feat_list = [feat_name, feat_name_dict[feat_name]+';'+feat.split(';')[1]]
 
         df_feat = df[df['unique_feat'] == feat]
         feat_list = feat_list + (list(df_feat['habitat']))
@@ -86,7 +106,7 @@ def _create_options_df(df):
         feat_total_list.append(feat_list)
 
     df_options = pd.DataFrame(feat_total_list)
-    #renaming first column so it can later be merged
+    # renaming first column so it can later be merged
     df_options = df_options.rename(columns={0: 'unique_feat',
                                             1: 'feat_name'})
     return(df_options)
@@ -102,13 +122,37 @@ def _create_options_df(df):
 #                         +'_'+dup_feat['NCLCODE']\
 #                         +'_'+dup_feat['ACCODE']
 
+def _get_feat_df_from_excel(
+        data_dir=data, file_name=critical_levels, tab_name=levels_tab
+        ):
+    '''boilerplate for extracting a useful dataframe from the linkages
+    excel file
+    '''
+
+    df = pd.read_excel(data_dir+file_name, tab_name)
+    # sorting by feture to create a consistent id set
+    df = df.sort_values('INTERESTCODE')
+    # There are duplicate rows in the linkages table
+    df = df.drop_duplicates()
+    # converting the string columns to string
+    all_cols = list(df.columns.values)
+    df[all_cols] = df[all_cols].astype(str)
+
+
+def _subdf_habitat(df):
+    return(df[df['INTERESTTYPE'].isin(habitat_interests)])
+
+
+def _subdf_species(df):
+    return(df[-df['INTERESTTYPE'].isin(habitat_interests)])
+
 
 def create_hab_options_df():
     '''creates the options list for habitat features'''
 
     # grabbing the habitat_types table from create tables lib
-    df_feat = link._get_feat_df_from_excel()
-    df_feat = link._subdf_habitat(df_feat)
+    df_feat = _get_feat_df_from_excel()
+    df_feat = _subdf_habitat(df_feat)
     df_feat = libdb._create_id_col(df_feat, 'habitat_id')
 
     dup_feat = _get_dup_feats(df_feat)
@@ -116,12 +160,11 @@ def create_hab_options_df():
     # Creating the identifying habitat column, has the id at the beginning
     # as a reference point
     dup_feat['habitat'] = dup_feat['habitat_id']\
-                                +'/'+dup_feat['BROADHABITAT']\
-                                +'___NVC-'+dup_feat['NVC_CODE']\
-                                +'___Eunis-'+dup_feat['EUNISCODE']\
-                                +'___NitrogenClass-'+dup_feat['NCLCLASS']\
-                                +'___AcidityClass-'+dup_feat['ACIDITYCLASS']
-
+        + '/'+dup_feat['BROADHABITAT']\
+        + '___NVC-'+dup_feat['NVC_CODE']\
+        + '___Eunis-'+dup_feat['EUNISCODE']\
+        + '___NitrogenClass-'+dup_feat['NCLCLASS']\
+        + '___AcidityClass-'+dup_feat['ACIDITYCLASS']
 
     dup_feat = _fix_habitat_strings(dup_feat)
 
@@ -134,8 +177,8 @@ def create_species_options_df():
     '''creates the options list for species features'''
 
     # grabbing the habitat_types table from create tables lib
-    df_feat = link._get_feat_df_from_excel()
-    df_feat = link._subdf_species(df_feat)
+    df_feat = _get_feat_df_from_excel()
+    df_feat = _subdf_species(df_feat)
     df_feat = libdb._create_id_col(df_feat, 'habitat_id')
 
     dup_feat = _get_dup_feats(df_feat)
@@ -143,9 +186,9 @@ def create_species_options_df():
     # Creating the identifying habitat column, has the id at the beginning
     # as a reference point
     dup_feat['habitat'] = dup_feat['habitat_id']\
-                          +'/'+dup_feat['BROADHABITAT']\
-                          +'___NitrogenClass-'+dup_feat['NCLCLASS']\
-                          +'___AcidityClass-'+dup_feat['ACIDITYCLASS']
+        + '/'+dup_feat['BROADHABITAT']\
+        + '___NitrogenClass-'+dup_feat['NCLCLASS']\
+        + '___AcidityClass-'+dup_feat['ACIDITYCLASS']
 
     dup_feat = _fix_habitat_strings(dup_feat)
 
@@ -165,7 +208,7 @@ def linkages_with_options(df):
     '''
 
     # the file location comes from lib
-    df_links = pd.read_csv(link.data+link.site_features)
+    df_links = pd.read_csv(data+site_features)
 
     # getting the unique eats to pair down the linksages table
     unique_feats = list(df['unique_feat'])
@@ -196,6 +239,9 @@ def linkages_with_options(df):
 if __name__ == "__main__":
 
     Path(linkages_output).mkdir(parents=True, exist_ok=True)
+
+    feat_name_dict = create_feat_dictionary()
+    site_name_dict = create_site_dictionary()
 
     df_options_spec = create_species_options_df()
     #df_options_spec.to_csv(linkages_output+'species_options.csv', index=False)

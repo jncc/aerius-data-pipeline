@@ -1,5 +1,5 @@
 import os
-import pandas as pd
+
 
 class ExportData():
     """Exporter for data structures into txt files for db.
@@ -15,7 +15,6 @@ class ExportData():
 
         if not os.path.exists(output_path):
             os.makedirs(output_path)
-
 
     def export_data(self, data, filename):
 
