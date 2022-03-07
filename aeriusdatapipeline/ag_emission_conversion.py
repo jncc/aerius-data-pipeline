@@ -2,8 +2,9 @@ import os
 import pandas as pd
 import numpy as np
 
-import lib_database_create as libdb
-
+from .lib_database_create import get_substance_id
+from .lib_database_create import _create_id_col
+from .export import Table
 
 #########################################################################
 #                        global variables
@@ -14,15 +15,11 @@ housing_cats = ['Housing systems',
                 'Grazing emissions',
                 'Outdoor yards (collecting/feeding)']
 
-#########################################################################
-#                        sub_df_functions
-#########################################################################
+root_path = './data/ag_emissions/all/'
 
-
-def _assign_scrub(house):
-    if house in housing_cats:
-        return('t')
-    return('f')
+#########################################################################
+#                        extract data
+#########################################################################
 
 
 def _create_housing_sub_df(df, section):
@@ -92,20 +89,26 @@ def _create_sub_df(df, section):
         return(pd.DataFrame())
 
 
-def process_ag_emissions_data(path):
-    '''Processes the entire ag emissions input data and generates three
-    dataframes, one for the emissions factors, one for the mitigation
-    factors and one for the overall N excretions. Takes a path to the
-    data file as input
+def process_ag_emissions_data(file, path=root_path):
+    '''Processes the entire ag emissions input data and generates two
+    dataframes, one for the emissions factors and one for the mitigation
+    factors. Takes a path to the data file as input
     '''
-    df_full = pd.read_excel(path)
+    df_full = pd.read_excel(path+file)
 
     # adds a blank line to the bottom to keep the section to blank line
     # logic the same below.
     df_full.loc[df_full.shape[0]] = [np.NaN] * df_full.shape[1]
 
-    #########################################################################
-    #                        emission factors
+    return(df_full)
+
+
+def get_emissions(file):
+    '''extracts the parts of the input data that give emission
+    rates and combines them
+    '''
+
+    df_full = process_ag_emissions_data(file)
 
     # df_housing_em = _create_housing_sub_df(df_full, "Housing systems")
     df_housing_em = _create_sub_df(df_full, "Housing systems")
@@ -117,8 +120,14 @@ def process_ag_emissions_data(path):
     df_em = pd.concat([df_housing_em, df_grazing_em, df_yard_em, df_storage_em,
                        df_spreading_em], axis=0)
 
-    #########################################################################
-    #                        mitigation factors
+    return(df_em)
+
+
+def get_reductions(file):
+    '''extracts the part of the data sets that give reduction
+    factors and combines them'''
+
+    df_full = process_ag_emissions_data(file)
 
     df_housing_mit = _create_sub_df(df_full, "Housing mitigation")
     df_yard_mit = _create_sub_df(df_full, "Yard mitigation")
@@ -128,21 +137,62 @@ def process_ag_emissions_data(path):
     df_mit = pd.concat([df_housing_mit, df_yard_mit, df_storage_mit,
                         df_spreading_mit], axis=0)
 
-    df_mit = df_mit.rename(columns={'emmision_factor': 'reduction_factor'})
+    # the col names in create_sub_df are named for emissions so need
+    # to be renamed for reductions
+    return(df_mit.rename(columns={'emmision_factor': 'reduction_factor'}))
 
-    return(df_em, df_mit)
+
+def get_full_df(get_func, path=root_path):
+    '''goes throught he files and extracts the data. extracts
+    emissions or reductions depending on the function used
+    '''
+
+    file_list = os.listdir(path)
+
+    df_list = []
+    for file in file_list:
+        df = get_func(file)
+        df_list.append(df)
+
+    return(pd.concat(df_list))
+
+
+def get_full_emissions():
+    return(get_full_df(get_emissions))
+
+
+def get_full_reductions():
+    return(get_full_df(get_reductions))
+
+
+#########################################################################
+#                        helper functions
+#########################################################################
+
+
+def _assign_scrub(house):
+    '''scrubber is a column we are using to signify the housing types
+    that go to making up the 100% of animal time
+    '''
+    if house in housing_cats:
+        return('t')
+    return('f')
 
 
 def set_unique_farm_name(df):
+    '''used for IDs'''
     return(df['farm_type'] + ' - (' + df['animal'] + '/' + df['source'] + ')')
 
 
 def create_farm_ids_dict(df_id):
+    '''creates dicts to be used for converting IDs. the first
+    output is id to val, the second is val to id
+    '''
 
     # the code is used to create the id dictionary later
     # needs name and animal as some names are duplicated
     df_id['unique_name'] = set_unique_farm_name(df_id)
-    df_id = libdb._create_id_col(df_id, 'farm_id')
+    df_id = _create_id_col(df_id, 'farm_id')
 
     id_to_val = dict(zip(df_id['farm_id'], df_id['unique_name']))
     val_to_id = {value: key for (key, value) in id_to_val.items()}
@@ -154,26 +204,36 @@ def create_farm_ids_dict(df_id):
 #########################################################################
 
 
-def create_table_farm_animal_categories(df):
+def create_table_farm_animal_categories():
+    '''creates a table of all the unique animal types from
+    the datasets
+    '''
+
+    df = get_full_emissions()
 
     df_animal = pd.DataFrame({
         'name': df['animal'].unique()
     })
 
-    df_animal = libdb._create_id_col(df_animal, 'farm_animal_category_id')
+    df_animal = _create_id_col(df_animal, 'farm_animal_category_id')
     df_animal['code'] = df_animal['farm_animal_category_id']
     df_animal['description'] = ' '
 
-    return(df_animal[['farm_animal_category_id', 'code', 'name',
-                      'description']])
+    table = Table()
+    table.get_data(df_animal[['farm_animal_category_id', 'code', 'name',
+                              'description']])
+    table.get_name('farm_animal_categories')
+    return(table)
 
 
-def create_farm_lodging_types(df, animal_names):
+def create_table_farm_lodging_types():
     '''creates the farm lodging system table from the emission
     dataframe. uses the animal names dictionary as a second argument.
     returns a dataframe
     '''
 
+    df = get_full_emissions()
+
     df_new = pd.DataFrame({
         'farm_animal_category_id': df['animal'],
         'name': df['farm_type'],
@@ -188,25 +248,36 @@ def create_farm_lodging_types(df, animal_names):
         lambda df_new: _assign_scrub(df_new['description']), axis=1
         )
 
+    df_animal = create_table_farm_animal_categories().data
+    animal_dict = dict(zip(df_animal['name'],
+                           df_animal['farm_animal_category_id']))
+
     # replaceing the animal names with ids and using the dicitonary
     # to keep things consistent
-    for name, id in animal_names.items():
+    for name, id in animal_dict.items():
         df_new['farm_animal_category_id'] =\
                             df_new['farm_animal_category_id'].replace(name, id)
     # Creating a loding system id
-    df_new = libdb._create_id_col(df_new, 'farm_lodging_type_id')
+    df_new = _create_id_col(df_new, 'farm_lodging_type_id')
     df_new['code'] = df_new['farm_lodging_type_id']
 
-    return(df_new[['farm_lodging_type_id', 'farm_animal_category_id', 'code',
-                   'name', 'description', 'scrubber']])
+    table = Table()
+    table.get_data(df_new[[
+        'farm_lodging_type_id', 'farm_animal_category_id', 'code',
+        'name', 'description', 'scrubber'
+        ]])
+    table.get_name('farm_lodging_types')
+    return(table)
 
 
-def create_farm_reductive_lodging_system(df, animal_names):
+def create_table_farm_reductive_lodging_system():
     '''creates the farm reductive lodging system tables. requires the
     mitigation total dataframe and the animal dictionary as inputs.
     retunrs a dataframe
     '''
 
+    df = get_full_reductions()
+
     df_new = pd.DataFrame({
         'farm_animal_category_id': df['animal'],
         'name': df['farm_type'],
@@ -221,53 +292,77 @@ def create_farm_reductive_lodging_system(df, animal_names):
         lambda df_new: _assign_scrub(df_new['description']), axis=1
         )
 
-    # replaceing the animal names with ids and using the dicitonary
+    df_animal = create_table_farm_animal_categories().data
+    animal_dict = dict(zip(df_animal['name'],
+                           df_animal['farm_animal_category_id']))
+
+    # replaceing the animal names with ids and using the dictionary
     # to keep things consistent
-    for name, id in animal_names.items():
+    for name, id in animal_dict.items():
         df_new['farm_animal_category_id'] =\
                         df_new['farm_animal_category_id'].replace(name, id)
     # creating a mitigation system id
-    df_new = libdb._create_id_col(df_new, 'farm_reductive_lodging_system_id')
+    df_new = _create_id_col(df_new, 'farm_reductive_lodging_system_id')
     df_new['code'] = df_new['farm_reductive_lodging_system_id']
 
-    return(df_new[[
+    table = Table()
+    table.get_data(df_new[[
         'farm_reductive_lodging_system_id', 'farm_animal_category_id', 'code',
         'name', 'description', 'scrubber'
         ]])
+    table.get_name('farm_reductive_lodging_system')
+    return(table)
 
 
-def create_table_farm_lodging_type_emission_factors(df):
+def create_table_farm_lodging_type_emission_factors():
+    '''emissions factors for each lodging type'''
 
+    df = get_full_emissions()
     # getting the ids in the same way for each table
     # df_em_total['unique_name'] = set_unique_farm_name(df)
     df['farm_lodging_type_id'] = set_unique_farm_name(df)
-    df = df.replace(create_farm_ids_dict(df_em_total)[1])
+    df = df.replace(create_farm_ids_dict(get_full_emissions())[1])
 
     # converting from kg to g
     df['emmision_factor'] = df['emmision_factor'] * 1000
 
-    df['substance_id'] = libdb.get_substance_id('nh3')
-    return(df[['farm_lodging_type_id', 'substance_id', 'emmision_factor']])
+    df['substance_id'] = get_substance_id('nh3')
+
+    table = Table()
+    table.get_data(df[['farm_lodging_type_id', 'substance_id',
+                       'emmision_factor']])
+    table.get_name('farm_lodging_type_emission_factors')
+    return(table)
 
 
-def create_table_farm_reductive_lodging_system_reduction_factor(df):
+def create_table_farm_reductive_lodging_system_reduction_factor():
+    '''reductions factors for each reductive system'''
 
-    df_mit_total['farm_reductive_lodging_system_id'] = set_unique_farm_name(df)
+    df_mit = get_full_reductions()
+    df_mit['farm_reductive_lodging_system_id'] = set_unique_farm_name(df_mit)
     # df['farm_reductive_lodging_system_id'] = \
     #     df['farm_type'] + ' - ' + df['animal']
-    df = df.replace(create_farm_ids_dict(df_mit_total)[1])
+    df_mit = df_mit.replace(create_farm_ids_dict(get_full_reductions())[1])
 
-    df['reduction_factor'] = df['reduction_factor'] / 100
+    df_mit['reduction_factor'] = df_mit['reduction_factor'] / 100
 
-    df['substance_id'] = libdb.get_substance_id('nh3')
-    return(df[[
+    df_mit['substance_id'] = get_substance_id('nh3')
+
+    table = Table()
+    table.get_data(df_mit[[
         'farm_reductive_lodging_system_id', 'substance_id', 'reduction_factor'
         ]])
+    table.get_name('farm_reductive_lodging_system_reduction_factor')
+    return(table)
 
 
-def create_table_farm_lodging_types_to_reductive_lodging_systems(
-        df_em, df_mit
-        ):
+def create_table_farm_lodging_types_to_reductive_lodging_systems():
+    '''which reductive factors are applicable to which
+    emission factors
+    '''
+
+    df_em = get_full_emissions()
+    df_mit = get_full_reductions()
 
     df_em['unique_name'] = set_unique_farm_name(df_em)
     df_mit['unique_name'] = set_unique_farm_name(df_mit)
@@ -295,52 +390,8 @@ def create_table_farm_lodging_types_to_reductive_lodging_systems(
     df_links = df_links[(df_links['farm_lodging_type_id'].notna()) &
                         (df_links['farm_reductive_lodging_system_id'].notna())]
 
-    return(df_links[[
-        'farm_lodging_type_id', 'farm_reductive_lodging_system_id'
-        ]])
-
-
-#########################################################################
-#                             script
-#########################################################################
-
-if __name__ == "__main__":
-
-    output_c = './output/aerius_data_22-02-23v2/'
-    example_path = './data/ag_emissions/all/'
-    file_list = os.listdir(example_path)
-
-    emissions_list = []
-    mitigations_list = []
-    for file in file_list:
-        print(file)
-        df_em, df_mit = process_ag_emissions_data(example_path+file)
-        emissions_list.append(df_em)
-        mitigations_list.append(df_mit)
-
-    df_em_total = pd.concat(emissions_list)
-    df_mit_total = pd.concat(mitigations_list)
-
-    # farm_links = create_table_farm_lodging_types_to_reductive_lodging_systems(df_em_total, df_mit_total)
-    # farm_links.to_csv(output_c+'farm_lodging_types_to_reductive_lodging_systems.txt', index=False, sep='\t')
-
-    # df_animal = create_table_farm_animal_categories(df_em_total)
-    # animal_dict = dict(zip(df_animal['name'], df_animal['farm_animal_category_id']))
-    # df_animal.to_csv(output_c+'farm_animal_categories.txt', index=False, sep='\t')
-
-    # df_lodging_types = create_farm_lodging_types(df_em_total, animal_dict)
-    # lodging_type_dict = dict(zip(df_lodging_types['code'], df_lodging_types['farm_lodging_type_id']))
-    # df_lodging_types.to_csv(output_c+'farm_lodging_types.txt', index=False, sep='\t')
-
-    # df_mitigation_types = create_farm_reductive_lodging_system(df_mit_total, animal_dict)
-    # reduction_type_dict = dict(zip(df_mitigation_types['code'], df_mitigation_types['farm_reductive_lodging_system_id']))
-    # df_mitigation_types.to_csv(output_c+'farm_reductive_lodging_systems.txt', index=False, sep='\t')
-
-    # lodging_emissions = create_table_farm_lodging_type_emission_factors(df_em_total, lodging_type_dict)
-    # lodging_emissions.to_csv(output_c+'farm_lodging_type_emission_factors.txt', index=False, sep='\t')
-
-    lodging_reductions = create_table_farm_reductive_lodging_system_reduction_factor(df_mit_total)
-    lodging_reductions.to_csv(output_c+'farm_reductive_lodging_system_reduction_factors.txt', index=False, sep='\t')
-
-    # substances = libdb.create_table_substances()
-    # substances.to_csv(output_c+'substances.txt', index=False, sep='\t')
+    table = Table()
+    table.get_data(df_links[['farm_lodging_type_id',
+                             'farm_reductive_lodging_system_id']])
+    table.get_name('farm_lodging_types_to_reductive_lodging_systems')
+    return(table)

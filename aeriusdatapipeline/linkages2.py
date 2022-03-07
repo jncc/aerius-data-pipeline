@@ -9,45 +9,46 @@ from shapely.geometry.multipolygon import MultiPolygon
 import pandas as pd
 import geopandas as gpd
 
-import lib_database_create as libdb
+from .lib_database_create import get_substance_id
+from .lib_database_create import _create_id_col
+from .lib_database_create import _convert_id
+from .lib_database_create import _create_dictionary_from_df
+from .lib_database_create import create_table_countries
+from .export import Table
 
 ########################################################################
 # global variables
 ########################################################################
 
 data = "./data/linkages_table/"
-critical_levels = "APIS-interest-feature-critical-load-linkages_simplBB.xlsx"
+critical_levels = "./data/linkages_table/APIS-interest-feature-critical-load-\
+                                                        linkages_simplBB.xlsx"
 levels_tab = "LINKAGES-FEATURE to CLOADS"
+links = './data/linkages_table/feature_contry_v2.csv'
 
-links = 'feature_contry_v2.csv'
+lpa_shape = './data/Local_Planning_Authorities/Local_Planning_Authorities_(\
+                                                        April_2019)_UK_BUC.shp'
 
-lpa_shape = './data/Local_Planning_Authorities/Local_Planning_Authorities_(April_2019)_UK_BUC.shp'
-
-
-sens_cols = ['INTERESTCODE', 'INTERESTNAME', 'INTERESTLAYNAME',
-             'INTERESTTYPECODE', 'INTERESTTYPE', 'HABITATCODE',
-             'BROADHABITAT', 'NVC_CODE', 'EUNISCODE', 'NCLCODE',
-             'NCLCLASS', 'ACCODE', 'ACIDITYCLASS']
-
-code_cols = ['INTERESTLAYNAME', 'INTERESTTYPECODE', 'HABITATCODE', 'NVC_CODE',
-             'EUNISCODE', 'NCLCODE', 'ACCODE']
+sac_shape = './data/Sites/ SAC_BNG.shp'
+spa_shape = './data/Sites/ SPA_BNG.shp'
+sssi_shape = './data/Sites/ SSSI_BNG.shp'
 
 substance_rename = {
-    'NDEP_LEVEL': libdb.get_substance_id('ndep'),
-    'SPECIESSENSITIVITYN': libdb.get_substance_id('ndep'),
-    'SPECIESSENSITIVEN': libdb.get_substance_id('ndep'),
-    'ACCODE': libdb.get_substance_id('adep'),
-    'SPECIESSENSITIVITYA': libdb.get_substance_id('adep'),
-    'SPECIESSENSITIVEA': libdb.get_substance_id('adep'),
-    'NH3_CLEVEL': libdb.get_substance_id('nh3'),
-    'JUSTIF_SPECIES_SENSITIVE_NH3': libdb.get_substance_id('nh3'),
-    'SPECIES_SENSITIVE_NH3': libdb.get_substance_id('nh3'),
-    'NOX_CLEVEL': libdb.get_substance_id('nox'),
-    'JUSTIF_SPECIES_SENSITIVE_NOX': libdb.get_substance_id('nox'),
-    'SPECIES_SENSITIVE_NOX': libdb.get_substance_id('nox'),
-    'SO2_CLEVEL': libdb.get_substance_id('so2'),
-    'JUSTIF_SPECIES_SENSITIVE_SO2': libdb.get_substance_id('so2'),
-    'SPECIES_SENSITIVE_SO2': libdb.get_substance_id('so2')
+    'NDEP_LEVEL': get_substance_id('ndep'),
+    'SPECIESSENSITIVITYN': get_substance_id('ndep'),
+    'SPECIESSENSITIVEN': get_substance_id('ndep'),
+    'ACCODE': get_substance_id('adep'),
+    'SPECIESSENSITIVITYA': get_substance_id('adep'),
+    'SPECIESSENSITIVEA': get_substance_id('adep'),
+    'NH3_CLEVEL': get_substance_id('nh3'),
+    'JUSTIF_SPECIES_SENSITIVE_NH3': get_substance_id('nh3'),
+    'SPECIES_SENSITIVE_NH3': get_substance_id('nh3'),
+    'NOX_CLEVEL': get_substance_id('nox'),
+    'JUSTIF_SPECIES_SENSITIVE_NOX': get_substance_id('nox'),
+    'SPECIES_SENSITIVE_NOX': get_substance_id('nox'),
+    'SO2_CLEVEL': get_substance_id('so2'),
+    'JUSTIF_SPECIES_SENSITIVE_SO2': get_substance_id('so2'),
+    'SPECIES_SENSITIVE_SO2': get_substance_id('so2')
 }
 
 ########################################################################
@@ -55,14 +56,12 @@ substance_rename = {
 ########################################################################
 
 
-def import_feat_sens(
-        data_dir=data, file_name=critical_levels, tab_name=levels_tab
-        ):
+def import_feat_sens(file_name=critical_levels, tab_name=levels_tab):
     '''boilerplate for extracting a useful dataframe from the linkages
     excel file
     '''
 
-    df = pd.read_excel(data_dir+file_name, tab_name)
+    df = pd.read_excel(file_name, tab_name)
     # sorting by feture to create a consistent id set
     df = df.sort_values('INTERESTCODE')
     # There are duplicate rows in the linkages table
@@ -75,6 +74,7 @@ def import_feat_sens(
 
 
 def clean_feat(df):
+    '''takes the imported features and sensitivity data and cleans it'''
 
     def _norm_code_col(val):
         return(unicodedata.normalize("NFKD", val))
@@ -90,79 +90,85 @@ def clean_feat(df):
 
 
 def make_feat_codes(df):
+    '''takes the cleaned features data and cretes codes to use instead
+    of the long descriptions of the habitat
+    '''
 
+    # There are some invalid eunis codes in the data which need to be
+    # converted to out null code (000)
     df["EUNISCODE"].replace({
         "nan": 'EU000', 'D2 f': 'D2', 'information to be added': 'EU000',
-        "Broad-leaved, mixed and yew woodland (Scrub - Pteridium aquilinum-Rubus fruticosus underscrub)": 'EU000',
-        "Broad-leaved, mixed and yew woodland (Scrub - Rubus fruticosus-Holcus lanatus underscrub)": 'EU000'},
+        "Broad-leaved, mixed and yew woodland (Scrub - Pteridium aquilinum-\
+                                        Rubus fruticosus underscrub)": 'EU000',
+        "Broad-leaved, mixed and yew woodland (Scrub - Rubus fruticosus-Holcus \
+                                                lanatus underscrub)": 'EU000'},
         inplace=True)
 
+    # nan NVC codes being replaced by our null code
     df["NVC_CODE"].replace({"nan": 'NVC000'}, inplace=True)
     df["NVC_CODE_original"] = df["NVC_CODE"]
 
+    # making a code for each of the nvc types. some of these are simple
+    # nvc habiats and some are massive lists of them
     nvc_types = df['NVC_CODE'].unique().tolist()
+    # we dont want to change our nvc null code
     nvc_types.remove('NVC000')
     nvc_to = [f'NVC{i}' for i in range(1, len(nvc_types))]
     nvc_rename = dict(zip(nvc_types, nvc_to))
 
     df["NVC_CODE"].replace(nvc_rename, inplace=True)
 
+    # combining all the codes for the description
+    df['description'] = df['HABITATCODE'] + ':' + df['NVC_CODE'] + ':'\
+        + df['EUNISCODE'] + ':' + df['NCLCODE'] + ':' + df['ACCODE']
+
+    # this is the name that we will use. the combo of name still
+    # gives some duplicates so we have a numbering system
     df['name'] = df['INTERESTLAYNAME'] + ' - ' + df['INTERESTTYPE']
     df['name'] = df['name'].str.replace(' - Habitat', '')
     g = df.groupby('name')
+    # adds the number next to the name
     df['name'] += g.cumcount().add(1).astype(str).radd(' ')\
         .mask(g['name'].transform('count') == 1, '')
 
     df = df.drop_duplicates()
-
-    df['description'] = df['HABITATCODE'] + ':' + df['NVC_CODE'] + ':'\
-        + df['EUNISCODE'] + ':' + df['NCLCODE'] + ':' + df['ACCODE']
-    df = libdb._create_id_col(df, 'habitat_type_id')
+    df = _create_id_col(df, 'habitat_type_id')
 
     return(df)
 
 
-def _unstack_sens_data(df_sens_ready, level, sensitivity):
-    '''input the dataframe, and two lists. one of the levels columns,
-    the second of the sensitivity columns. make sure that the id column
-    is at the beginning of each list. outputs a dataframe.
+def _unstack_sens_data(df, colname):
+    '''takes a df and unstacks it so that the columns are now values
+    in a new col. the names are then converted to a substance id
+    using a dictionary
     '''
 
-    id_string = level[0]
+    id_string = 'habitat_type_id'
 
-    df_an_load = df_sens_ready[level]
-    df_an_load.set_index(id_string, inplace=True)
-    df_an_load = df_an_load.T.unstack().reset_index().rename(columns={
-        'level_1': 'substance_id', 0: 'critical_level'
+    df.set_index(id_string, inplace=True)
+    df = df.T.unstack().reset_index().rename(columns={
+        'level_1': 'substance_id', 0: colname
         })
-    # df_an_load = _convert_substance_id(df_an_load)
-    df_an_load['substance_id'] = libdb._convert_id(df_an_load['substance_id'], substance_rename)
 
-    df_an_sens = df_sens_ready[sensitivity]
-    df_an_sens.set_index(id_string, inplace=True)
-    df_an_sens = df_an_sens.T.unstack().reset_index().rename(columns={
-        'level_1': 'substance_id', 0: 'sensitivity'
-        })
-    # df_an_sens = _convert_substance_id(df_an_sens)
-    df_an_sens['substance_id'] = libdb._convert_id(df_an_sens['substance_id'], substance_rename)
+    # the substance rename converts the col names into substance
+    # ids using a dictionary
+    df['substance_id'] = _convert_id(df['substance_id'],
+                                     substance_rename)
 
-    df_an = pd.merge(df_an_load, df_an_sens,
-                     on=[id_string, 'substance_id'], how='outer')
-
-    return(df_an)
+    return(df)
 
 
 def import_sites_from_shape():
+    '''importing the shapefiles for the SAC/SPA and SSSI sites'''
 
-    site_path = './data/Sites/'
-    df_sac = gpd.read_file(site_path + ' SAC_BNG.shp')
+    df_sac = gpd.read_file(sac_shape)
     df_sac['design_status_description'] = 'SAC'
     # FIXME keeping the double country info rather than dropping it
     df_sac.drop_duplicates('SITECODE', inplace=True)
-    df_spa = gpd.read_file(site_path + ' SPA_BNG.shp')
+    df_spa = gpd.read_file(spa_shape)
     df_spa['design_status_description'] = 'SPA'
     df_spa.drop_duplicates('SITECODE', inplace=True)
-    df_sssi = gpd.read_file(site_path + ' SSSI_BNG.shp')
+    df_sssi = gpd.read_file(sssi_shape)
     df_sssi['design_status_description'] = 'SSSI'
     df_sssi.drop_duplicates('SITECODE', inplace=True)
 
@@ -170,7 +176,7 @@ def import_sites_from_shape():
     # needed to fit into the db
     df_all = gpd.GeoDataFrame(pd.concat([df_sac, df_spa, df_sssi],
                                         ignore_index=True))
-    df_all = libdb._create_id_col(df_all, 'assessment_area_id')
+    df_all = _create_id_col(df_all, 'assessment_area_id')
 
     df_all["geometry"] = [MultiPolygon([feature]) if type(feature) == Polygon
                           else feature for feature in df_all["geometry"]]
@@ -179,6 +185,10 @@ def import_sites_from_shape():
 
 
 def get_lpa_geoms(df_sites, lpa_path=lpa_shape):
+    '''maps the sites against the local planning authority
+    polygons and assigns an lpa for each site. also removes the
+    ones with no lpa as these are offshore
+    '''
 
     # if the table is read from txt rather than file
     # def make_shapely(df):
@@ -200,7 +210,9 @@ def get_lpa_geoms(df_sites, lpa_path=lpa_shape):
 
         site_lpa_list = []
         for geo in find_geoms:
-            site_lpa_list.append(df_lpa.loc[df_lpa.index[df_lpa['geometry'] == geo].values[0], 'lpa19nm'])
+            site_lpa_list.append(
+                df_lpa.loc[df_lpa.index[df_lpa['geometry'] == geo].values[0],
+                           'lpa19nm'])
 
         # some of the sites are offshore and don't have an LPA so they
         # will error below
@@ -215,29 +227,36 @@ def get_lpa_geoms(df_sites, lpa_path=lpa_shape):
     # We don't want marine sites in aerius
     df_sites = df_sites[df_sites['authority_id'] != 'marine']
 
-    df_auth = create_table_authorities(lpa_shape)[['name', 'authority_id']]
-    authority_dict = libdb._create_dictionary_from_df(df_auth)
-    df_sites['authority_id'] = libdb._convert_id(df_sites['authority_id'],
-                                                 authority_dict)
+    df_auth = create_table_authorities(lpa_shape).data
+    df_auth = df_auth[['name', 'authority_id']]
+    authority_dict = _create_dictionary_from_df(df_auth)
+    df_sites['authority_id'] = _convert_id(df_sites['authority_id'],
+                                           authority_dict)
 
     return(df_sites)
 
 
-def import_links(data_dir=data, links_file=links):
+def import_links(links_file=links):
+    '''importing the links between site and feature'''
 
-    df = pd.read_csv(data_dir+links_file)
+    df = pd.read_csv(links_file)
+    # sites with no country are offshore
     df = df[df['COUNTRY'].notna()]
 
     return(df)
 
 
 def setup_natura_tables():
+    '''this sets up the natura tables - the resulting df is
+    editted for the natura2000_areas and the natura2000_directive_areas
+    table'''
 
     df_site = import_sites_from_shape()
     df_site = get_lpa_geoms(df_site)
 
     df_site = df_site.rename(columns={'SITECODE': 'code', 'SITENAME': 'name'})
 
+    # the directive areas are this +1000 so we need it int
     df_site['assessment_area_id'] = df_site['assessment_area_id'].astype(int)
     df_site['natura2000_area_id'] = df_site['assessment_area_id']
 
@@ -249,6 +268,9 @@ def setup_natura_tables():
 
 
 def create_table_habitat_type_critical_levels():
+    '''creates the table habitat type critical levels from the features
+    excel file
+    '''
 
     df = import_feat_sens()
     df = clean_feat(df)
@@ -258,67 +280,82 @@ def create_table_habitat_type_critical_levels():
 
     # unstack data turns the columns into a single column and the values
     # into the next column
-    df_an = _unstack_sens_data(
-        df,
-        ['habitat_type_id', 'NDEP_LEVEL', 'ACCODE'],
-        ['habitat_type_id', 'SPECIESSENSITIVEN', 'SPECIESSENSITIVEA']
+    df_an1 = _unstack_sens_data(
+        df[['habitat_type_id', 'NDEP_LEVEL', 'ACCODE']], 'critical_level'
         )
+    df_an2 = _unstack_sens_data(
+        df[['habitat_type_id', 'SPECIESSENSITIVEN', 'SPECIESSENSITIVEA']],
+        'sensitivity'
+        )
+    df_an = pd.merge(df_an1, df_an2,
+                     on=['habitat_type_id', 'substance_id'], how='outer')
     df_an['result_type'] = 'deposition'
 
-    df_nns = _unstack_sens_data(
-        df,
-        ['habitat_type_id', 'NH3_CLEVEL', 'NOX_CLEVEL', 'SO2_CLEVEL'],
-        ['habitat_type_id', 'SPECIES_SENSITIVE_NH3', 'SPECIES_SENSITIVE_NOX',
-            'SPECIES_SENSITIVE_SO2']
+    df_nns1 = _unstack_sens_data(
+        df[['habitat_type_id', 'NH3_CLEVEL', 'NOX_CLEVEL', 'SO2_CLEVEL']],
+        'critical_level'
         )
+    df_nns2 = _unstack_sens_data(
+        df[['habitat_type_id', 'SPECIES_SENSITIVE_NH3',
+            'SPECIES_SENSITIVE_NOX', 'SPECIES_SENSITIVE_SO2']],
+        'sensitivity'
+        )
+    df_nns = pd.merge(df_nns1, df_nns2,
+                      on=['habitat_type_id', 'substance_id'], how='outer')
     df_nns['result_type'] = 'concentration'
 
-    df_sen = df_an.append(df_nns).sort_values(['habitat_type_id',
-                                               'substance_id'])
-    df_sen.reset_index(drop=True, inplace=True)
+    df_t = df_an.append(df_nns).sort_values(['habitat_type_id',
+                                             'substance_id'])
+    df_t.reset_index(drop=True, inplace=True)
 
     # THIS IS THE CORRECT CODE!!!!!!!
     # just the data doesn't have the info yet for habitats
-    # df_sen['sensitivity'] = df_sen['sensitivity'].replace({
+    # df_t['sensitivity'] = df_t['sensitivity'].replace({
     #     'Site specific': 't',
     #     'Yes': 't',
     #     'No': 'f'
     # })
 
     # FIXME temporary fix until the data it right
-    df_sen.loc[df_sen['critical_level'] != 'nan', 'sensitivity'] = 't'
-    df_sen.loc[df_sen['critical_level'].isin(['nan', 'nan to nan']), 'sensitivity'] = 'f'
+    df_t.loc[df_t['critical_level'] != 'nan', 'sensitivity'] = 't'
+    df_t.loc[df_t['critical_level'].isin(
+        ['nan', 'nan to nan']), 'sensitivity'] = 'f'
 
     # gets rid of the acid rows for now
-    df_sen = df_sen[df_sen['substance_id'] != libdb.get_substance_id('adep')]
+    df_t = df_t[df_t['substance_id'] != get_substance_id('adep')]
 
     # getting the first value from the range of loads/levels
-    df_sen['critical_range'] = df_sen['critical_level']
-    df_sen['critical_level'] = df_sen['critical_level'].str.split(' to ').str[0]
-    df_sen['critical_level'] = df_sen['critical_level'].str.split(' or ').str[0]
+    df_t['critical_range'] = df_t['critical_level']
+    df_t['critical_level'] = df_t['critical_level'].str.split(' to ').str[0]
+    df_t['critical_level'] = df_t['critical_level'].str.split(' or ').str[0]
 
-    df_sen['sensitive'] = df_sen['sensitivity']
-    df_sen['habitat_type_id'] = df_sen['habitat_type_id']
+    df_t['sensitive'] = df_t['sensitivity']
+    df_t['habitat_type_id'] = df_t['habitat_type_id']
 
-    df_sen = df_sen.loc[~df_sen['substance_id'].isin([1000, '1000'])]
+    df_t = df_t.loc[~df_t['substance_id'].isin([1000, '1000'])]
 
-    return(df_sen[[
+    table = Table()
+    table.get_data(df_t[[
         'habitat_type_id', 'substance_id', 'result_type',
         'critical_level', 'sensitive'
         ]])
+    table.get_name('habitat_type_critical_levels')
+    return(table)
 
 
 def create_table_authorities(path):
+    '''creates the table for the authorities from the shapefiles'''
 
     df_lpa = gpd.read_file(path)
 
     df_lpa['country_id'] = [x[0] for x in df_lpa['lpa19cd']]
 
     # getting the country from the code and converting to id
-    countries = libdb.create_table_countries()
-    country_dict = libdb._create_dictionary_from_df(countries[['code', 'country_id']])
-    df_lpa['country_id'] = libdb._convert_id(df_lpa['country_id'],
-                                             country_dict)
+    countries = create_table_countries().data
+    country_dict = _create_dictionary_from_df(
+                                countries[['code', 'country_id']])
+    df_lpa['country_id'] = _convert_id(df_lpa['country_id'],
+                                       country_dict)
 
     df_lpa = df_lpa.rename(columns={'objectid': 'authority_id',
                                     'lpa19cd': 'code',
@@ -326,10 +363,17 @@ def create_table_authorities(path):
 
     df_lpa['type'] = 'unknown'
 
-    return(df_lpa[['authority_id', 'country_id', 'code', 'name', 'type']])
+    table = Table()
+    table.get_data(
+        df_lpa[['authority_id', 'country_id', 'code', 'name', 'type']]
+        )
+    table.get_name('authorities')
+    return(table)
 
 
 def create_table_habitat_areas():
+    '''creates the table for the habitat areas from the links file as well
+    as the geoms from the natura table'''
 
     df_l = import_links()
 
@@ -350,24 +394,37 @@ def create_table_habitat_areas():
         how='inner'
         )
 
-    df_full = libdb._create_id_col(df_full, 'habitat_area_id')
+    df_full = _create_id_col(df_full, 'habitat_area_id')
     df_full['coverage'] = 1
 
-    return(df_full[['assessment_area_id', 'habitat_area_id', 'habitat_type_id',
-                    'coverage', 'geometry']])
+    table = Table()
+    table.get_data(df_full[['assessment_area_id', 'habitat_area_id',
+                            'habitat_type_id', 'coverage', 'geometry']])
+    table.get_name('habitat_areas')
+    return(table)
 
 
 def create_table_natura2000_areas():
+    '''just assigns the type as natura2000_area from the natura
+    setup funtion
+    '''
 
     df = setup_natura_tables()
 
     df['type'] = 'natura2000_area'
     # df['type'] = df['design_status_description']
-    return(df[['assessment_area_id', 'type', 'name', 'code', 'authority_id',
-               'geometry', 'natura2000_area_id']])
+
+    table = Table()
+    table.get_data(df[['assessment_area_id', 'type', 'name', 'code',
+                       'authority_id', 'geometry', 'natura2000_area_id']])
+    table.get_name('natura2000_areas')
+    return(table)
 
 
 def create_table_natura2000_directive_areas():
+    '''assigns the type as directive area as well as give info on
+    the bird and habitat directives for the natura2000_directive table
+    '''
 
     df = setup_natura_tables()
 
@@ -391,52 +448,25 @@ def create_table_natura2000_directive_areas():
 
     df['assessment_area_id'] = df['assessment_area_id'] + 1000000
     df['natura2000_directive_area_id'] = df['assessment_area_id']
-    return(df[[
+
+    table = Table()
+    table.get_data(df[[
         'assessment_area_id', 'type', 'name', 'code', 'authority_id',
         'geometry', 'natura2000_directive_area_id', 'natura2000_area_id',
         'bird_directive', 'habitat_directive', 'design_status_description'
         ]])
+    table.get_name('natura2000_directive_areas')
+    return(table)
 
 
 def create_table_habitat_types():
+    '''creates habitat types table from the features file'''
 
     df_feat = import_feat_sens()
     df_feat = clean_feat(df_feat)
     df_feat = make_feat_codes(df_feat)
-    return(df_feat[['habitat_type_id', 'name', 'description']])
 
-########################################################################
-# main script
-########################################################################
-
-
-if __name__ == "__main__":
-
-    output = './output/aerius_data_22-02-28/'
-
-    df_feat = create_table_habitat_types()
-    df_feat.to_csv(output+'habitat_types.txt', sep='\t', index=False)
-
-    df_sens = create_table_habitat_type_critical_levels()
-    df_sens.to_csv(output+'habitat_type_critical_levels.txt', sep='\t', index=False)
-
-    df_areas = create_table_habitat_areas()
-    df_areas.to_csv(output+'habitat_areas.txt', sep='\t', index=False)
-
-    df_nat = create_table_natura2000_areas()
-    df_nat.to_csv(output+'natura2000_areas.txt', sep='\t', index=False)
-
-    df_nat_dir = create_table_natura2000_directive_areas()
-    df_nat_dir.to_csv(output+'natura2000_directive_areas.txt', sep='\t', index=False)
-
-
-    # Checking for the feats that are not in the sens table
-    #pd.DataFrame({'missing_feats': df_link[df_link['habitat_type_id'].isna()]['INTERESTCODE'].unique()}).to_csv('missing_feats.csv', index=False)
-    
-    # The sites that are not found in the shapefile
-    # missing_sites = list(set(df_link['SITECODE'].unique()) - set(df_site['SITECODE'].unique()))
-    # print(missing_sites)
-    # print(len(missing_sites))
-    # df_all_sites = pd.read_csv('./data/linkages_table/sitename_code.csv', encoding = "ISO-8859-1")
-    # df_all_sites = df_all_sites[df_all_sites['SITECODE'].isin(missing_sites)]
-    # df_all_sites.to_csv('missing_all_sites.csv', index=False)
+    table = Table()
+    table.get_data(df_feat[['habitat_type_id', 'name', 'description']])
+    table.get_name('habitat_types')
+    return(table)

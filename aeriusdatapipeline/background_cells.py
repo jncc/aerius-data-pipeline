@@ -2,15 +2,28 @@ import pandas as pd
 import numpy as np
 import os
 import time
-import winsound
 
-import lib_database_create as libdb
+from .lib_database_create import _create_id_col
+from .lib_database_create import get_substance_id
+from .export import Table
 
 
-def get_background_cells_square(path):
+no2_path = './data/background_conc/'
+nh3_path = './data/ammonia/'
+dep_path = './data/background_cells/CBEDSingleYears/rCBED_Fdep_keqHaYr_1986-2\
+                                                            020_gridavg.csv'
 
-    # Import data
-    df_cell = pd.read_csv(path, header=5)
+
+def get_background_cells_square(path=no2_path):
+    '''takes in one of the 1x1km concentrations and calculates gridsquares
+    from the centre points x and y. gives back a full df with info inc
+    the id
+    '''
+
+    # this just gets the first in the conc dir
+    # any of them would do
+    conc_1 = os.listdir(path)[0]
+    df_cell = pd.read_csv(path+conc_1, header=5)
 
     # add or subtract 500 from X and y to get grid corner  coordinates
     df_cell['x+500'] = df_cell['x']+500
@@ -20,20 +33,18 @@ def get_background_cells_square(path):
 
     # after the +/- 500, they dont need to be nums anymore
     df_cell = df_cell.astype(str)
-    # Concatenate the x+500, y+500, x-500 and y-500 into the points of the
-    # gridsquares and turn them into strings
+    # getting the four corners of the square
     df_cell['LxLy'] = df_cell['x-500'] + ' ' + df_cell['y-500']
     df_cell['HxLy'] = df_cell['x+500'] + ' ' + df_cell['y-500']
     df_cell['HxHy'] = df_cell['x+500'] + ' ' + df_cell['y+500']
     df_cell['LxHy'] = df_cell['x-500'] + ' ' + df_cell['y+500']
-    # df_cell[['centre']] = df_cell['x'] + ' ' + df_cell['y']
 
-    # Concatenate the center points into
+    # making it into a polygon to be read by postGIS
     df_cell['geometry'] = 'POLYGON ((' + df_cell['LxLy'] + ', '\
         + df_cell['HxLy'] + ', ' + df_cell['HxHy'] + ', ' + df_cell['LxHy']\
         + ', ' + df_cell['LxLy'] + '))'
 
-    df_cell = libdb._create_id_col(df_cell, 'background_cell_id')
+    df_cell = _create_id_col(df_cell, 'background_cell_id')
     df_cell['coords'] = df_cell['x'] + ' - ' + df_cell['y']
 
     return(df_cell[[
@@ -41,15 +52,16 @@ def get_background_cells_square(path):
         ]])
 
 
-def get_ammonia_data(path):
+def get_ammonia_data(path=nh3_path):
+    '''takes in the path of the directory with ammonies conc
+    files in and creates a df from all of them combined
+    '''
+
     file_list = os.listdir(path)
     df = pd.DataFrame()
     # Read in the CSV and rename columns
     for file in file_list:
-        t_start = time.time()
-        print('Started processing ' + file + '....')
         df_ammonia = pd.read_csv(path + file)
-        year = file[8:12]
 
         df_ammonia = df_ammonia.rename(columns={
             df_ammonia.columns[0]: "easting",
@@ -57,44 +69,27 @@ def get_ammonia_data(path):
             df_ammonia.columns[2]: "ammonia"
             })
 
-        # Create list of eastings and northings
-        # TODO replace with the function
-        for i, row in df_ammonia.iterrows():
-            # get row out of df_ammonia
-            ammonia = row.ammonia
-            east = row.easting
-            north = row.northing
-            # Create Arrays of Esstings and northings buy subtracting or
-            # adding numbers
-            eastings = np.array([
-                east-2000, east-1000, east, east+1000, east+2000],
-                dtype=np.intc)
-            northings = np.array([
-                north-2000, north-1000, north, north+1000, north+2000],
-                dtype=np.intc)
-
-            # Create arrays of the 1k grid square
-            for east_val in eastings:
-                # Create array from lists above
-                new_row_set = [[east_val, northings[0], ammonia, year],
-                               [east_val, northings[1], ammonia, year],
-                               [east_val, northings[2], ammonia, year],
-                               [east_val, northings[3], ammonia, year],
-                               [east_val, northings[4], ammonia, year]]
-                # Append Array to dataframe
-                df = df.append(new_row_set)
+        t_start = time.time()
+        print('Started processing ' + file + '....')
+        # converting the 5x5km grid to 1x1
+        df = five_to_one_k(df_ammonia)
         t_end = time.time()
         print('....file finished in ' + str(t_end - t_start) + '\n\n')
+
     # Rename Dataframe columns
     ammonia = df.rename(
         columns={0: "x", 1: "y", 2: "concentration", 3: "year"}
         )
-    ammonia["substance_id"] = libdb.get_substance_id('nh3')
+    ammonia["substance_id"] = get_substance_id('nh3')
 
     return(ammonia)
 
 
-def get_concentration_data(dirname):
+def get_concentration_data(dirname=no2_path):
+    '''take the directory path with the concetration data for no2
+    nox and so2 files in it and creates a single df from all
+    of them
+    '''
 
     # create vairables
     conc_data_list = []
@@ -156,51 +151,71 @@ def five_to_one_k(df):
 ##########################
 
 
-def create_table_background_cell(df):
+def create_table_background_cell():
+    '''creates the table for the background cells. simply
+    reducing the columns from get_background_cells_square
+    '''
 
+    df = get_background_cells_square()
+    # removed for now so that all background squares exist
+    # even with no conc or dep
     # df = df[df['background_cell_id'].isin(cell_list)]
-    return(df[['background_cell_id', 'geometry']])
+
+    table = Table()
+    table.get_data(df[['background_cell_id', 'geometry']])
+    table.get_name('background_cell')
+    return(table)
 
 
-def create_table_background_concentration(conc_path, ammonia_path):
+def create_table_background_concentration():
+    '''creates the table for background concentrations by
+    combining the data from nh3 as well as the no2/nox/so2 data
+    '''
 
-    # just getting any of the no2 etc files to get background cells from
-    conc_1 = os.listdir(conc_path)[0]
-    df_cell = get_background_cells_square(conc_path+conc_1)
-
-    df_conc = get_concentration_data(conc_path)
+    df_cell = get_background_cells_square()
+    df_conc = get_concentration_data()
 
     df_conc['substance_id'] = df_conc['substance_id'].replace({
-        'no2': libdb.get_substance_id('no2'),
-        'so2': libdb.get_substance_id('so2'),
-        'nox': libdb.get_substance_id('nox'),
-        'nh3': libdb.get_substance_id('nh3')
+        'no2': get_substance_id('no2'),
+        'so2': get_substance_id('so2'),
+        'nox': get_substance_id('nox'),
+        'nh3': get_substance_id('nh3')
     })
 
     df_conc = pd.merge(df_conc, df_cell[['x', 'y', 'background_cell_id']],
                        how='left', on=['x', 'y'])
 
-    df_ammonia = get_ammonia_data(ammonia_path)
+    df_ammonia = get_ammonia_data()
 
     df_ammonia = pd.merge(
         df_ammonia, df_cell[['x', 'y', 'background_cell_id']],
         how='left', on=['x', 'y']
         )
 
-    # There are some ackground cells missing from the ammonia chart
+    # There are some background cells missing from the ammonia chart
     # get rid of the missing ones everywhere
     df_ammonia = df_ammonia[df_ammonia['background_cell_id'].notna()]
     data_cells = df_ammonia['background_cell_id'].tolist()
     df_conc = df_conc[df_conc['background_cell_id'].isin(data_cells)]
 
-    df_conc_total = pd.concat([df_ammonia, df_conc])
+    df_conc_t = pd.concat([df_ammonia, df_conc])
 
-    return(df_conc_total[[
+    # df_conc_t['background_cell_id'] =\
+    #                       df_conc_t['background_cell_id'].astype(str)
+    # df_conc_t = df_conc_t.loc[df_conc_t['concentration'] != 'MISSING']
+
+    table = Table()
+    table.get_data(df_conc_t[[
         'background_cell_id', 'year', 'substance_id', 'concentration'
         ]])
+    table.get_name('background_concentration')
+    return(table)
 
 
-def create_table_background_cell_depositions(filepath):
+def create_table_background_cell_depositions(filepath=dep_path):
+    '''takes the direectory path for the depositions files ass input
+    and outputs the the years back to 2017 as a single df
+    '''
 
     df = pd.read_csv(filepath)
 
@@ -211,35 +226,20 @@ def create_table_background_cell_depositions(filepath):
     # nitrogen deposition. for MVP this is the only one needed
     df['deposition'] = df['NOx'] + df['NHx']
     df['adep'] = df['NOx'] + df['NHx'] + df['SOx'] - df['CaMg']
+    # gets rid of weird entries
     df['deposition'] = pd.to_numeric(df['deposition'], errors='coerce')
     # converting from keq to kg
     df['deposition'] = df['deposition'] * 14
     df = df.dropna(subset=['deposition'])
 
-    df_cell = get_background_cells_square('./data/background_cells/background_squares/mapno22017.csv')
+    df_cell = get_background_cells_square()
     df = pd.merge(df, df_cell[['x', 'y', 'background_cell_id']],
                   how='left', on=['x', 'y'])
     df = df[df['background_cell_id'].notna()]
 
     df['year'] = df['year'].astype(int)
 
-    return(df[['background_cell_id', 'year', 'deposition']])
-
-
-if __name__ == "__main__":
-
-    # df_cell = get_background_cells_square('./data/background_conc/mapso22019.csv')
-    # df_cell_table = create_table_background_cell(df_cell)
-    # df_cell_table.to_csv('./output/aerius_data_22-01-21/background_cells.txt', sep='\t', index=False)
-
-    # df_conc = create_table_background_concentration('./data/background_conc/', './data/ammonia/')
-    # df_conc['background_cell_id'] = df_conc['background_cell_id'].astype(str)
-    # df_conc = df_conc.loc[df_conc['concentration'] != 'MISSING']
-    # df_conc.to_csv('./output/21-11-04-dataset/background_cell_concentrations.txt', sep='\t', index=False)
-
-    # df_dep = create_table_background_cell_depositions('./data/background_cells/CBEDSingleYears/rCBED_Fdep_keqHaYr_1986-2020_gridavg.csv')
-    # df_dep.to_csv('./output/aerius_data_22-02-07/background_cell_depositions.txt', sep='\t', index=False)
-
-    print(get_background_cells_square('./data/background_cells/background_conc/mapno22017.csv'))
-
-    winsound.Beep(2500, 1000)
+    table = Table()
+    table.get_data(df[['background_cell_id', 'year', 'deposition']])
+    table.get_name('background_cell_depositions')
+    return(table)

@@ -88,6 +88,8 @@ def _create_options_df(df):
     # this is the max number of habitats associated with one feat
     max_options_n = df['unique_feat'].value_counts().max()
 
+    feat_name_dict = create_feat_dictionary()
+
     feat_total_list = []
     # loop throug the feats and create a list of each of the potential
     # habitats for that feat
@@ -96,7 +98,8 @@ def _create_options_df(df):
         # and convert into proper names
         feat_list = [feat, feat_name_dict[feat.split(';')[0]]]
         # if I want to include the type, reconbine with the feat_name_dict
-        # feat_list = [feat_name, feat_name_dict[feat_name]+';'+feat.split(';')[1]]
+        # feat_list = [feat_name,
+        #              feat_name_dict[feat_name]+';'+feat.split(';')[1]]
 
         df_feat = df[df['unique_feat'] == feat]
         feat_list = feat_list + (list(df_feat['habitat']))
@@ -202,10 +205,13 @@ def create_species_options_df():
 ########################################################################
 
 
-def linkages_with_options(df):
+def linkages_with_options(feat_func):
     '''takes the feat;type with options dataframe and matches it with
     the sites that have that feat;type
     '''
+
+    # habitat or species depending on what we need
+    df = feat_func()
 
     # the file location comes from lib
     df_links = pd.read_csv(data+site_features)
@@ -223,14 +229,24 @@ def linkages_with_options(df):
         'INTERESTCODE', 'INTEREST_TYPE_CODE', 'unique_feat'
         ], axis=1)
 
+    site_name_dict = create_site_dictionary()
+
     # changing site codes to site names with a dictionary created at top
     df_options_final['SITECODE'] = \
         df_options_final['SITECODE'].replace(site_name_dict)
 
     df_options_final = df_options_final.sort_values(['COUNTRY', 'SITECODE'])
-    
+
     return(df_options_final)
-    
+
+
+def hab_linkages_with_options(create_hab_options_df):
+    return(linkages_with_options(create_hab_options_df))
+
+
+def spec_linkages_with_options(create_species_options_df):
+    return(linkages_with_options(create_species_options_df))
+
 
 ########################################################################
 # running the code to get linkages + options
@@ -240,21 +256,18 @@ if __name__ == "__main__":
 
     Path(linkages_output).mkdir(parents=True, exist_ok=True)
 
-    feat_name_dict = create_feat_dictionary()
-    site_name_dict = create_site_dictionary()
-
     df_options_spec = create_species_options_df()
-    #df_options_spec.to_csv(linkages_output+'species_options.csv', index=False)
-    df_options_final = linkages_with_options(df_options_spec)
+    # df_options_spec.to_csv(linkages_output+'species_options.csv', index=False)
+    df_options_final = spec_linkages_with_options()
     df_options_final[df_options_final['COUNTRY'].isin(['Scotland', 'England/Scotland'])].to_csv(linkages_output+'scotland_species_options.csv', index=False)
     df_options_final[df_options_final['COUNTRY'].isin(['Wales', 'Wales/Scotland'])].to_csv(linkages_output+'wales_species_options.csv', index=False)
     df_options_final[df_options_final['COUNTRY'].isin(['N Ireland'])].to_csv(linkages_output+'northern_ireland_species_options.csv', index=False)
     df_options_final[df_options_final['COUNTRY'].isin(['England'])].to_csv(linkages_output+'england_species_options.csv', index=False)
 
     df_options_hab = create_hab_options_df()
-    #df_options_hab.to_csv(linkages_output+'habitat_options.csv', index=False)
-    df_options_final = linkages_with_options(df_options_hab)
+    # df_options_hab.to_csv(linkages_output+'habitat_options.csv', index=False)
+    df_options_final = hab_linkages_with_options()
     df_options_final[df_options_final['COUNTRY'].isin(['Scotland', 'England/Scotland'])].to_csv(linkages_output+'scotland_habitat_options.csv', index=False)
     df_options_final[df_options_final['COUNTRY'].isin(['Wales', 'Wales/Scotland'])].to_csv(linkages_output+'wales_habitat_options.csv', index=False)
     df_options_final[df_options_final['COUNTRY'].isin(['N Ireland'])].to_csv(linkages_output+'northern_ireland_options.csv', index=False)
-    #df_options_final[df_options_final['COUNTRY'].isin(['England'])].to_csv(linkages_output+'england_habitat_options.csv', index=False)
+    # df_options_final[df_options_final['COUNTRY'].isin(['England'])].to_csv(linkages_output+'england_habitat_options.csv', index=False)

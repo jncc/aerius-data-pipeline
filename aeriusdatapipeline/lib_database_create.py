@@ -3,6 +3,8 @@ import inspect  # for finding the name of the function to pass as errors
 import numpy as np
 import pandas as pd
 
+from .export import Table
+
 ########################################################################
 # Internal data handling functions
 ########################################################################
@@ -76,7 +78,7 @@ def get_id(df, col_ref, col_id, name):
 
 def get_substance_id(name):
     '''a way to consistently get the right substance id'''
-    df = create_table_substances()
+    df = create_table_substances().data
     return(df.loc[df['name'] == name, 'substance_id'].values[0])
 
 ########################################################################
@@ -109,9 +111,12 @@ def create_table_substances():
         [1000, 'adep', 'acid deposition']
         ])
 
-    return(pd.DataFrame(
+    table = Table()
+    table.get_data(pd.DataFrame(
         all_sub, columns=['substance_id', 'name', 'description']
         ))
+    table.get_name('substances')
+    return(table)
 
 
 def create_table_example_authorities():
@@ -142,4 +147,8 @@ def create_table_countries():
                         [5, 'SE', 'Scotland/England'],
                         [6, 'WE', 'Wales/England']])
 
-    return(pd.DataFrame(all_sub, columns=['country_id', 'code', 'name']))
+    table = Table()
+    table.get_data(pd.DataFrame(all_sub,
+                                columns=['country_id', 'code', 'name']))
+    table.get_name('countries')
+    return(table)
