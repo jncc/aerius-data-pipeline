@@ -162,8 +162,8 @@ def create_table_background_cell():
     # df = df[df['background_cell_id'].isin(cell_list)]
 
     table = Table()
-    table.get_data(df[['background_cell_id', 'geometry']])
-    table.get_name('background_cell')
+    table.data = df[['background_cell_id', 'geometry']]
+    table.name = 'background_cell'
     return(table)
 
 
@@ -205,10 +205,10 @@ def create_table_background_concentration():
     # df_conc_t = df_conc_t.loc[df_conc_t['concentration'] != 'MISSING']
 
     table = Table()
-    table.get_data(df_conc_t[[
+    table.data = df_conc_t[[
         'background_cell_id', 'year', 'substance_id', 'concentration'
-        ]])
-    table.get_name('background_concentration')
+        ]]
+    table.name = 'background_concentration'
     return(table)
 
 
@@ -240,6 +240,6 @@ def create_table_background_cell_depositions(filepath=dep_path):
     df['year'] = df['year'].astype(int)
 
     table = Table()
-    table.get_data(df[['background_cell_id', 'year', 'deposition']])
-    table.get_name('background_cell_depositions')
+    table.data = df[['background_cell_id', 'year', 'deposition']]
+    table.name = 'background_cell_depositions'
     return(table)

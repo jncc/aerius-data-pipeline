@@ -335,11 +335,11 @@ def create_table_habitat_type_critical_levels():
     df_t = df_t.loc[~df_t['substance_id'].isin([1000, '1000'])]
 
     table = Table()
-    table.get_data(df_t[[
+    table.data = df_t[[
         'habitat_type_id', 'substance_id', 'result_type',
         'critical_level', 'sensitive'
-        ]])
-    table.get_name('habitat_type_critical_levels')
+        ]]
+    table.name = 'habitat_type_critical_levels'
     return(table)
 
 
@@ -364,10 +364,8 @@ def create_table_authorities(path):
     df_lpa['type'] = 'unknown'
 
     table = Table()
-    table.get_data(
-        df_lpa[['authority_id', 'country_id', 'code', 'name', 'type']]
-        )
-    table.get_name('authorities')
+    table.data = df_lpa[['authority_id', 'country_id', 'code', 'name', 'type']]
+    table.name = 'authorities'
     return(table)
 
 
@@ -398,9 +396,9 @@ def create_table_habitat_areas():
     df_full['coverage'] = 1
 
     table = Table()
-    table.get_data(df_full[['assessment_area_id', 'habitat_area_id',
-                            'habitat_type_id', 'coverage', 'geometry']])
-    table.get_name('habitat_areas')
+    table.data = df_full[['assessment_area_id', 'habitat_area_id',
+                          'habitat_type_id', 'coverage', 'geometry']]
+    table.name = 'habitat_areas'
     return(table)
 
 
@@ -415,9 +413,9 @@ def create_table_natura2000_areas():
     # df['type'] = df['design_status_description']
 
     table = Table()
-    table.get_data(df[['assessment_area_id', 'type', 'name', 'code',
-                       'authority_id', 'geometry', 'natura2000_area_id']])
-    table.get_name('natura2000_areas')
+    table.data = df[['assessment_area_id', 'type', 'name', 'code',
+                     'authority_id', 'geometry', 'natura2000_area_id']]
+    table.name = 'natura2000_areas'
     return(table)
 
 
@@ -450,12 +448,12 @@ def create_table_natura2000_directive_areas():
     df['natura2000_directive_area_id'] = df['assessment_area_id']
 
     table = Table()
-    table.get_data(df[[
+    table.data = df[[
         'assessment_area_id', 'type', 'name', 'code', 'authority_id',
         'geometry', 'natura2000_directive_area_id', 'natura2000_area_id',
         'bird_directive', 'habitat_directive', 'design_status_description'
-        ]])
-    table.get_name('natura2000_directive_areas')
+        ]]
+    table.name = 'natura2000_directive_areas'
     return(table)
 
 
@@ -467,6 +465,6 @@ def create_table_habitat_types():
     df_feat = make_feat_codes(df_feat)
 
     table = Table()
-    table.get_data(df_feat[['habitat_type_id', 'name', 'description']])
-    table.get_name('habitat_types')
+    table.data = df_feat[['habitat_type_id', 'name', 'description']]
+    table.name = 'habitat_types'
     return(table)

@@ -112,10 +112,10 @@ def create_table_substances():
         ])
 
     table = Table()
-    table.get_data(pd.DataFrame(
+    table.data = pd.DataFrame(
         all_sub, columns=['substance_id', 'name', 'description']
-        ))
-    table.get_name('substances')
+        )
+    table.name = 'substances'
     return(table)
 
 
@@ -148,7 +148,7 @@ def create_table_countries():
                         [6, 'WE', 'Wales/England']])
 
     table = Table()
-    table.get_data(pd.DataFrame(all_sub,
-                                columns=['country_id', 'code', 'name']))
-    table.get_name('countries')
+    table.data = pd.DataFrame(all_sub,
+                              columns=['country_id', 'code', 'name'])
+    table.name = 'countries'
     return(table)

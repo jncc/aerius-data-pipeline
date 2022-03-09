@@ -220,9 +220,9 @@ def create_table_farm_animal_categories():
     df_animal['description'] = ' '
 
     table = Table()
-    table.get_data(df_animal[['farm_animal_category_id', 'code', 'name',
-                              'description']])
-    table.get_name('farm_animal_categories')
+    table.data = df_animal[['farm_animal_category_id', 'code', 'name',
+                            'description']]
+    table.name = 'farm_animal_categories'
     return(table)
 
 
@@ -262,11 +262,11 @@ def create_table_farm_lodging_types():
     df_new['code'] = df_new['farm_lodging_type_id']
 
     table = Table()
-    table.get_data(df_new[[
+    table.data = df_new[[
         'farm_lodging_type_id', 'farm_animal_category_id', 'code',
         'name', 'description', 'scrubber'
-        ]])
-    table.get_name('farm_lodging_types')
+        ]]
+    table.name = 'farm_lodging_types'
     return(table)
 
 
@@ -306,11 +306,11 @@ def create_table_farm_reductive_lodging_system():
     df_new['code'] = df_new['farm_reductive_lodging_system_id']
 
     table = Table()
-    table.get_data(df_new[[
+    table.data = df_new[[
         'farm_reductive_lodging_system_id', 'farm_animal_category_id', 'code',
         'name', 'description', 'scrubber'
-        ]])
-    table.get_name('farm_reductive_lodging_system')
+        ]]
+    table.name = 'farm_reductive_lodging_system'
     return(table)
 
 
@@ -329,9 +329,9 @@ def create_table_farm_lodging_type_emission_factors():
     df['substance_id'] = get_substance_id('nh3')
 
     table = Table()
-    table.get_data(df[['farm_lodging_type_id', 'substance_id',
-                       'emmision_factor']])
-    table.get_name('farm_lodging_type_emission_factors')
+    table.data = df[['farm_lodging_type_id', 'substance_id',
+                     'emmision_factor']]
+    table.name = 'farm_lodging_type_emission_factors'
     return(table)
 
 
@@ -349,10 +349,10 @@ def create_table_farm_reductive_lodging_system_reduction_factor():
     df_mit['substance_id'] = get_substance_id('nh3')
 
     table = Table()
-    table.get_data(df_mit[[
+    table.data = df_mit[[
         'farm_reductive_lodging_system_id', 'substance_id', 'reduction_factor'
-        ]])
-    table.get_name('farm_reductive_lodging_system_reduction_factor')
+        ]]
+    table.name = 'farm_reductive_lodging_system_reduction_factor'
     return(table)
 
 
@@ -391,7 +391,7 @@ def create_table_farm_lodging_types_to_reductive_lodging_systems():
                         (df_links['farm_reductive_lodging_system_id'].notna())]
 
     table = Table()
-    table.get_data(df_links[['farm_lodging_type_id',
-                             'farm_reductive_lodging_system_id']])
-    table.get_name('farm_lodging_types_to_reductive_lodging_systems')
+    table.data = df_links[['farm_lodging_type_id',
+                           'farm_reductive_lodging_system_id']]
+    table.name = 'farm_lodging_types_to_reductive_lodging_systems'
     return(table)

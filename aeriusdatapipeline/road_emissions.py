@@ -8,6 +8,9 @@ from .lib_database_create import _create_id_col
 from .lib_database_create import get_substance_id
 from .export import Table
 
+# assigning a new col as a string gives a warning
+# this stops the arning which is not applicable here
+pd.options.mode.chained_assignment = None
 
 nox_path = './data/Road-emissions/final/nox.xlsx'
 nh3_path = './data/Road-emissions/final/road_emissions_nh3.xlsx'

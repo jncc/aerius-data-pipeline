@@ -23,12 +23,6 @@ class Table():
         self.name = None
         self.data = None
 
-    def get_data(self, data):
-        self.data = data
-
-    def get_name(self, name):
-        self.name = name
-
     def export_data(self, filepath):
 
         # errors for missing name and data
