@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import copy
 
 from .lib_database_create import _convert_id
@@ -8,14 +9,12 @@ from .lib_database_create import get_substance_id
 from .export import Table
 
 
-nox_path = './data/Road-emissions/full/nox.xlsx'
-nh3_path = './data/Road-emissions/full/road_emissions_nh3.xlsx'
+nox_path = './data/Road-emissions/final/nox.xlsx'
+nh3_path = './data/Road-emissions/final/road_emissions_nh3.xlsx'
+hdv_path = './data/Road-emissions/final/hdv.xlsx'
 
 
-def read_road_data():
-    '''reads in the manually obtained EFT data from an excel and combines
-    into a full df with all the info needed
-    '''
+def read_nh3_data():
 
     df_nh3 = pd.read_excel(nh3_path)
 
@@ -35,12 +34,54 @@ def read_road_data():
 
     df_nh3 = expand_feature(df_nh3, 'maximum_speed',
                             [5, 16, 32, 48, 64, 70, 97, 113, 127, 140])
-    df_nh3 = expand_feature(df_nh3, 'gradient', [0, 1, 2, 3, 4, 5, 6])
 
-    df_nox = pd.read_excel(nox_path)
+    # Separating out the hdv stuff so it can be given a gradient
+    df_hdv = df_nh3[(df_nh3['HGV'] == 100) | (df_nh3['Bus and Coach'] == 100)]
+    df_hdv = expand_feature(df_hdv, 'gradient',
+                            [0, 1, 2, 3, 4, 5, 6, -1, -2, -3, -4, -5, -6])
+
+    # the non HDV vehicles dont vary with gradient
+    df_s = df_nh3[(df_nh3['HGV'] != 100) & (df_nh3['Bus and Coach'] != 100)]
+    df_s = expand_feature(df_s, 'gradient', [0])
+
+    return(pd.concat([df_s, df_hdv]))
+
+
+def read_nox_data():
+
+    df_nx = pd.read_excel(nox_path)
     # convert it to /s
-    df_nox['emission_factor'] = df_nox['emission_factor'] / 86400
-    df = pd.concat([df_nh3, df_nox])
+    df_nx['emission_factor'] = df_nx['emission_factor'] / 86400
+    df_nx = df_nx[(df_nx['HGV'] != 100) & (df_nx['Bus and Coach'] != 100)]
+    df_nx = df_nx[df_nx['gradient'] == 0]
+    return(df_nx)
+
+
+def read_hdv_data():
+
+    df_hdv = pd.read_excel(hdv_path)
+    # convert it to /s
+    df_hdv['emission_factor'] = df_hdv['emission_factor'] / 86400
+
+    # converting gradients to negative if down hill
+    df_hdv["Flow Direction"].replace({
+        "Up Hill": 1,
+        np.NaN: 1,
+        'Down Hill': -1}, inplace=True)
+    df_hdv['gradient'] = df_hdv['gradient'] * df_hdv['Flow Direction']
+
+    return(df_hdv)
+
+
+def read_road_data():
+    '''reads in the manually obtained EFT data from an excel and combines
+    into a full df with all the info needed
+    '''
+
+    df_nh3 = read_nh3_data()
+    df_nox = read_nox_data()
+    df_hdv = read_hdv_data()
+    df = pd.concat([df_nh3, df_nox, df_hdv])
 
     # TODO improve this so no ifs. replace 100 with col name + add all
     # cols together
@@ -167,8 +208,8 @@ def create_table_road_area_categories():
     df_out = _create_id_col(df_out, 'road_area_category_id')
 
     table = Table()
-    table.get_data(df_out[['road_area_category_id', 'name', 'code']])
-    table.get_name('road_area_categories')
+    table.data = df_out[['road_area_category_id', 'name', 'code']]
+    table.name = 'road_area_categories'
     return(table)
 
 
@@ -185,8 +226,8 @@ def create_table_road_type_categories():
     df_out = _create_id_col(df_out, 'road_type_category_id')
 
     table = Table()
-    table.get_data(df_out[['road_type_category_id', 'name', 'code']])
-    table.get_name('road_type_categories')
+    table.data = df_out[['road_type_category_id', 'name', 'code']]
+    table.name = 'road_type_categories'
     return(table)
 
 
@@ -203,8 +244,8 @@ def create_table_road_vehicle_categories():
     df_out = _create_id_col(df_out, 'road_vehicle_category_id')
 
     table = Table()
-    table.get_data(df_out[['road_vehicle_category_id', 'name', 'code']])
-    table.get_name('road_vehicle_categories')
+    table.data = df_out[['road_vehicle_category_id', 'name', 'code']]
+    table.name = 'road_vehicle_categories'
     return(table)
 
 
@@ -226,9 +267,9 @@ def create_table_road_speed_profiles():
     df_out = _create_id_col(df_out, 'road_speed_profile_id')
 
     table = Table()
-    table.get_data(df_out[['road_speed_profile_id', 'speed_limit_enforcement',
-                           'maximum_speed', 'gradient']])
-    table.get_name('road_speed_profiles')
+    table.data = df_out[['road_speed_profile_id', 'speed_limit_enforcement',
+                         'maximum_speed', 'gradient']]
+    table.name = 'road_speed_profiles'
     return(table)
 
 
@@ -246,8 +287,8 @@ def create_table_road_areas_to_road_types():
     df_out['road_type_category_id'] = _convert_road_type(df_out)
 
     table = Table()
-    table.get_data(df_out[['road_area_category_id', 'road_type_category_id']])
-    table.get_name('road_areas_to_road_types')
+    table.data = df_out[['road_area_category_id', 'road_type_category_id']]
+    table.name = 'road_areas_to_road_types'
     return(table)
 
 
@@ -266,8 +307,8 @@ def create_table_road_types_to_speed_profiles():
     df_out['road_speed_profile_id'] = _convert_speed_profiles(df_out)
 
     table = Table()
-    table.get_data(df_out[['road_type_category_id', 'road_speed_profile_id']])
-    table.get_name('road_types_to_speed_profiles')
+    table.data = df_out[['road_type_category_id', 'road_speed_profile_id']]
+    table.name = 'road_types_to_speed_profiles'
     return(table)
 
 
@@ -291,11 +332,11 @@ def create_table_road_categories():
     df_out = _create_id_col(df_out, 'road_category_id')
 
     table = Table()
-    table.get_data(df_out[[
+    table.data = df_out[[
         'road_category_id', 'road_area_category_id', 'road_type_category_id',
         'road_vehicle_category_id', 'road_speed_profile_id'
-        ]])
-    table.get_name('road_categories')
+        ]]
+    table.name = 'road_categories'
     return(table)
 
 
@@ -326,7 +367,7 @@ def create_table_road_category_emission_factors():
                                     'NH3', get_substance_id('NHx'))
 
     table = Table()
-    table.get_data(df_final[['road_category_id', 'year', 'substance_id',
-                             'emission_factor', 'stagnated_emission_factor']])
-    table.get_name('road_category_emission_factors')
+    table.data = df_final[['road_category_id', 'year', 'substance_id',
+                           'emission_factor', 'stagnated_emission_factor']]
+    table.name = 'road_category_emission_factors'
     return(table)
