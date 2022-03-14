@@ -5,3 +5,5 @@
 build/
 dist/
 aeriusdatapipeline.egg-info
+.coverage
+examples/playground.py
