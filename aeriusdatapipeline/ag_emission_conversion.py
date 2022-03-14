@@ -17,6 +17,38 @@ housing_cats = ['Housing systems',
 
 root_path = './data/ag_emissions/all/'
 
+animal_rename = {
+    'Breeding birds': 'G4',
+    'Breeding bulls': 'A7',
+    'Breeding heifers': 'A3.1',
+    'Breeding replacements': 'A3.2',
+    'Broilers': 'E3',
+    'Calves (<1 year)': 'A4',
+    'Dairy calves (<1 year)': 'A5',
+    'Dairy cows': 'A1',
+    'Dairy in-calf heifers': 'A3.3',
+    'Dairy replacements (>1 year, not in-calf)': 'A3.4',
+    'Dry sows and gilts': 'D1.1',
+    'Ducks and Geese': 'G1',
+    'Ewes': 'B1.1',
+    'Farmed deer': 'K4',
+    'Female cows for slaughter': 'A2',
+    'Finishers 20-80 kg': 'D3.1',
+    'Finishers >80 kg': 'D3.2',
+    'Goats': 'C1',
+    'Growing pullets': 'E1',
+    'Horses on agricultural holdings': 'K1',
+    'Lambs': 'B1.2',
+    'Laying hens': 'E2',
+    'Male cows for slaughter': 'A6',
+    'Rams': 'B1.3',
+    'Turkeys': 'F1',
+    'Weaners <20kg': 'D1.2',
+    'Farrowing sows': 'D1.3',
+    'Beef suckler cows': 'A3.5',
+    'Boars': 'D2'
+}
+
 #########################################################################
 #                        extract data
 #########################################################################
@@ -199,6 +231,11 @@ def create_farm_ids_dict(df_id):
 
     return(id_to_val, val_to_id)
 
+
+def insert_space(string):
+    '''inserts a space in the code to give the name'''
+    return string[0:1] + ' ' + string[1:]
+
 #########################################################################
 #                        create table functions
 #########################################################################
@@ -211,13 +248,19 @@ def create_table_farm_animal_categories():
 
     df = get_full_emissions()
 
-    df_animal = pd.DataFrame({
-        'name': df['animal'].unique()
-    })
+    df_animal = pd.DataFrame({'description': df['animal'].unique()})
 
     df_animal = _create_id_col(df_animal, 'farm_animal_category_id')
-    df_animal['code'] = df_animal['farm_animal_category_id']
-    df_animal['description'] = ' '
+
+    # the code should be a specific code for each animal
+    # the lookup table comes from the dutch version
+    df_animal['code'] = df_animal['description']
+    df_animal['code'] = df_animal['code'].replace(animal_rename)
+    # the name is the code but with a space after the initial letter
+    df_animal['name'] = df_animal['code']
+    df_animal['name'] = df_animal.apply(
+        lambda df_animal: insert_space(df_animal['name']), axis=1
+        )
 
     table = Table()
     table.data = df_animal[['farm_animal_category_id', 'code', 'name',
@@ -236,20 +279,22 @@ def create_table_farm_lodging_types():
 
     df_new = pd.DataFrame({
         'farm_animal_category_id': df['animal'],
-        'name': df['farm_type'],
-        'description': df['source']
+        'type': df['source'],  # this will be used to filter
+        'code': df['animal'],
+        'emission': df['emmision_factor']  # for ordering the code
     })
 
     # the code is used to create the id dictionary later
     # needs name and animal as some names are duplicated
-    df_new['name'] = set_unique_farm_name(df)
-    # df_new['scrubber'] = 'f'
-    df_new['scrubber'] = df_new.apply(
-        lambda df_new: _assign_scrub(df_new['description']), axis=1
-        )
+    df_new['description'] = set_unique_farm_name(df)
+    df_new['scrubber'] = 'f'
+    # df_new['scrubber'] = df_new.apply(
+    #     lambda df_new: _assign_scrub(df_new['description']), axis=1
+    #     )
 
     df_animal = create_table_farm_animal_categories().data
-    animal_dict = dict(zip(df_animal['name'],
+    # the actual name of the animal is in description
+    animal_dict = dict(zip(df_animal['description'],
                            df_animal['farm_animal_category_id']))
 
     # replaceing the animal names with ids and using the dicitonary
@@ -259,7 +304,21 @@ def create_table_farm_lodging_types():
                             df_new['farm_animal_category_id'].replace(name, id)
     # Creating a loding system id
     df_new = _create_id_col(df_new, 'farm_lodging_type_id')
-    df_new['code'] = df_new['farm_lodging_type_id']
+
+    # the code comes from the animal type
+    df_new['code'] = df_new['code'].replace(animal_rename)
+    # the code then needs to have an extra part for the type of emission
+    # the code starts at the most emissive source
+    g = df_new.groupby('code')
+    # adds the counting number suffix
+    df_new['code'] += g.cumcount().add(1).astype(str).radd('.').\
+        mask(g['code'].transform('count') == 1, '')
+
+    # the name is the code but with a space after the initial letter
+    df_new['name'] = df_new['code']
+    df_new['name'] = df_new.apply(
+        lambda df_new: insert_space(df_new['name']), axis=1
+        )
 
     table = Table()
     table.data = df_new[[
@@ -280,20 +339,22 @@ def create_table_farm_reductive_lodging_system():
 
     df_new = pd.DataFrame({
         'farm_animal_category_id': df['animal'],
-        'name': df['farm_type'],
-        'description': df['source']
+        'type': df['source'],  # this will be used to filter
+        'code': df['animal'],
+        'emission': df['reduction_factor']  # for ordering the code
     })
 
     # the code is used to create the id dictionary later
     # needs name and animal as some names are duplicated
-    df_new['name'] = set_unique_farm_name(df)
-    # df_new['scrubber'] = 'f'
-    df_new['scrubber'] = df_new.apply(
-        lambda df_new: _assign_scrub(df_new['description']), axis=1
-        )
+    df_new['description'] = set_unique_farm_name(df)
+    df_new['scrubber'] = 'f'
+    # df_new['scrubber'] = df_new.apply(
+    #     lambda df_new: _assign_scrub(df_new['description']), axis=1
+    #     )
 
     df_animal = create_table_farm_animal_categories().data
-    animal_dict = dict(zip(df_animal['name'],
+    # the actual name of the animal is in description
+    animal_dict = dict(zip(df_animal['description'],
                            df_animal['farm_animal_category_id']))
 
     # replaceing the animal names with ids and using the dictionary
@@ -303,8 +364,22 @@ def create_table_farm_reductive_lodging_system():
                         df_new['farm_animal_category_id'].replace(name, id)
     # creating a mitigation system id
     df_new = _create_id_col(df_new, 'farm_reductive_lodging_system_id')
-    df_new['code'] = df_new['farm_reductive_lodging_system_id']
+    
+    # the code comes from the animal type
+    df_new['code'] = df_new['code'].replace(animal_rename)
+    # the code then needs to have an extra part for the type of emission
+    # the code starts at the most emissive source
+    g = df_new.groupby('code')
+    # adds the counting number suffix
+    df_new['code'] += g.cumcount().add(1).astype(str).radd('.').\
+        mask(g['code'].transform('count') == 1, '')
 
+    # the name is the code but with a space after the initial letter
+    df_new['name'] = df_new['code']
+    df_new['name'] = df_new.apply(
+        lambda df_new: insert_space(df_new['name']), axis=1
+        )
+    
     table = Table()
     table.data = df_new[[
         'farm_reductive_lodging_system_id', 'farm_animal_category_id', 'code',
