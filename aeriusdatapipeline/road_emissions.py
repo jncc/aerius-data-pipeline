@@ -2,11 +2,7 @@ import pandas as pd
 import numpy as np
 import copy
 
-from .lib_database_create import _convert_id
-from .lib_database_create import _create_dictionary_from_df
-from .lib_database_create import _create_id_col
-from .lib_database_create import get_substance_id
-from .export import Table
+import aeriusdatapipeline as adp
 
 # assigning a new col as a string gives a warning
 # this stops the arning which is not applicable here
@@ -16,27 +12,30 @@ nox_path = './data/Road-emissions/final/nox.xlsx'
 nh3_path = './data/Road-emissions/final/road_emissions_nh3.xlsx'
 hdv_path = './data/Road-emissions/final/hdv.xlsx'
 
+df_nh3 = pd.read_excel(nh3_path)
+df_nx = pd.read_excel(nox_path)
+df_hdv = pd.read_excel(hdv_path)
 
-def read_nh3_data():
 
-    df_nh3 = pd.read_excel(nh3_path)
+def expand_feature(df, name, expansion_list):
+    '''the nh3 data doesn't vary by speed or gradient so doesnt have
+    that variable. this gives it a row for each combination
+    and assigns it the same emissions value
+    '''
 
-    def expand_feature(df, name, expansion_list):
-        '''the nh3 data doesn't vary by speed or gradient so doesnt have
-        that variable. this gives it a row for each combination
-        and assigns it the same emissions value
-        '''
+    var_dfs = []
+    for var in expansion_list:
+        df_var = copy.copy(df)
+        df_var[name] = var
+        var_dfs.append(df_var)
 
-        var_dfs = []
-        for var in expansion_list:
-            df_var = copy.copy(df)
-            df_var[name] = var
-            var_dfs.append(df_var)
+    return(pd.concat(var_dfs))
 
-        return(pd.concat(var_dfs))
+
+def prep_nh3_data(df_nh3=df_nh3):
 
     df_nh3 = expand_feature(df_nh3, 'maximum_speed',
-                            [5, 16, 32, 48, 64, 70, 97, 113, 127, 140])
+                            [5, 16, 32, 48, 64, 80, 97, 113, 127, 140])
 
     # Separating out the hdv stuff so it can be given a gradient
     df_hdv = df_nh3[(df_nh3['HGV'] == 100) | (df_nh3['Bus and Coach'] == 100)]
@@ -50,9 +49,8 @@ def read_nh3_data():
     return(pd.concat([df_s, df_hdv]))
 
 
-def read_nox_data():
+def prep_nox_data(df_nx=df_nx):
 
-    df_nx = pd.read_excel(nox_path)
     # convert it to /s
     df_nx['emission_factor'] = df_nx['emission_factor'] / 86400
     df_nx = df_nx[(df_nx['HGV'] != 100) & (df_nx['Bus and Coach'] != 100)]
@@ -60,20 +58,49 @@ def read_nox_data():
     return(df_nx)
 
 
-def read_hdv_data():
+def prep_hdv_data(df_hdv=df_hdv):
 
-    df_hdv = pd.read_excel(hdv_path)
     # convert it to /s
-    df_hdv['emission_factor'] = df_hdv['emission_factor'] / 86400
+    df_hdv['emission_factor'] = df_hdv['emission_factor'].astype(float) / 86400
 
     # converting gradients to negative if down hill
     df_hdv["Flow Direction"].replace({
         "Up Hill": 1,
         np.NaN: 1,
         'Down Hill': -1}, inplace=True)
-    df_hdv['gradient'] = df_hdv['gradient'] * df_hdv['Flow Direction']
+    # Down Hill is converted to -1 so when timesd by the gradient
+    # it makes down hill gradients negative
+    df_hdv['gradient'] = df_hdv['gradient'].astype(int)\
+        * df_hdv['Flow Direction']
 
     return(df_hdv)
+
+
+def sort_df(df, lst, colName):
+    df['order'] = df[colName].apply(lambda x: lst.index(x))
+    return df.sort_values(['order']).drop(columns=['order'])
+
+
+def convert_100_to_vehicle(df):
+    # TODO improve this so no ifs. replace 100 with col name + add all
+    # cols together
+    def get_vehicle_type(df_sub):
+        '''converts the 100% to the name of the vehicle in the data'''
+        if df_sub['Car'] == 100.0:
+            return('Car')
+        if df_sub['Taxi (black cab)'] == 100.0:
+            return('Taxi (black cab)')
+        if df_sub['LGV'] == 100.0:
+            return('LGV')
+        if df_sub['HGV'] == 100.0:
+            return('HGV')
+        if df_sub['Bus and Coach'] == 100.0:
+            return('Bus and Coach')
+        if df_sub['Motorcycle'] == 100.0:
+            return('Motorcycle')
+
+    df['vehicle_type'] = df.apply(lambda row: get_vehicle_type(row), axis=1)
+    return(df)
 
 
 def read_road_data():
@@ -81,33 +108,20 @@ def read_road_data():
     into a full df with all the info needed
     '''
 
-    df_nh3 = read_nh3_data()
-    df_nox = read_nox_data()
-    df_hdv = read_hdv_data()
+    df_nh3 = prep_nh3_data()
+    df_nox = prep_nox_data()
+    df_hdv = prep_hdv_data()
+
+    # the data is made up of these three parts
     df = pd.concat([df_nh3, df_nox, df_hdv])
-
-    # TODO improve this so no ifs. replace 100 with col name + add all
-    # cols together
-    def get_vehicle_type(df):
-        '''converts the 100% to the name of the vehicle in the data'''
-        if df['Car'] == 100.0:
-            return('Car')
-        if df['Taxi (black cab)'] == 100.0:
-            return('Taxi (black cab)')
-        if df['LGV'] == 100.0:
-            return('LGV')
-        if df['HGV'] == 100.0:
-            return('HGV')
-        if df['Bus and Coach'] == 100.0:
-            return('Bus and Coach')
-        if df['Motorcycle'] == 100.0:
-            return('Motorcycle')
-
-    df['vehicle_type'] = df.apply(lambda df: get_vehicle_type(df), axis=1)
+    # converting the 100(%) to the name of the vehicle
+    df = convert_100_to_vehicle(df)
+    # reordering the df to make the most sense in the UI
+    df = sort_df(df, ['Car', 'Taxi (black cab)', 'Motorcycle', 'LGV', 'HGV',
+                      'Bus and Coach'], 'vehicle_type')
     # some of the ints get converted to float
     df['maximum_speed'] = df['maximum_speed'].astype(int).astype(str)
     df['year'] = df['year'].astype(int).astype(str)
-
     return(df)
 
 
@@ -145,10 +159,10 @@ def _convert_speed_profiles(df_convert):
     df_speed = create_table_road_speed_profiles().data
     df_speed['speed_profile'] = df_speed['maximum_speed'].astype(str)\
         + '-' + df_speed['gradient'].astype(str)
-    speed_dic = _create_dictionary_from_df(
+    speed_dic = adp._create_dictionary_from_df(
         df_speed[['speed_profile', 'road_speed_profile_id']]
         )
-    df_convert['road_speed_profile_id'] = _convert_id(
+    df_convert['road_speed_profile_id'] = adp._convert_id(
                                     df_convert['speed_profile'], speed_dic)
     return(df_convert['road_speed_profile_id'])
 
@@ -158,10 +172,10 @@ def _convert_road_type(df_convert):
 
     # Changing the road_types to the ids created in the road type table
     df_types = create_table_road_type_categories().data
-    type_dic = _create_dictionary_from_df(
+    type_dic = adp._create_dictionary_from_df(
         df_types[['name', 'road_type_category_id']]
         )
-    df_convert['road_type'] = _convert_id(
+    df_convert['road_type'] = adp._convert_id(
                                         df_convert['road_type'], type_dic)
 
     return(df_convert['road_type'])
@@ -173,10 +187,10 @@ def _convert_road_area(df_convert):
     # Changing the countries to the ids created in the road
     # area table
     df_areas = create_table_road_area_categories().data
-    areas_dic = _create_dictionary_from_df(
+    areas_dic = adp._create_dictionary_from_df(
         df_areas[['name', 'road_area_category_id']]
         )
-    df_convert['country'] = _convert_id(df_convert['country'], areas_dic)
+    df_convert['country'] = adp._convert_id(df_convert['country'], areas_dic)
     return(df_convert['country'])
 
 
@@ -184,10 +198,10 @@ def _convert_vehicle_type(df_convert):
     '''creating the vehicle type df to convert the road type to id'''
 
     df_vehicle = create_table_road_vehicle_categories().data
-    vehicle_dic = _create_dictionary_from_df(
+    vehicle_dic = adp._create_dictionary_from_df(
         df_vehicle[['name', 'road_vehicle_category_id']]
         )
-    df_convert['vehicle_type'] = _convert_id(
+    df_convert['vehicle_type'] = adp._convert_id(
                                     df_convert['vehicle_type'], vehicle_dic)
 
     return(df_convert['vehicle_type'])
@@ -208,10 +222,10 @@ def create_table_road_area_categories():
     })
 
     df_out = _make_code(df_out)
-    df_out = _create_id_col(df_out, 'road_area_category_id')
+    df_out = adp._create_id_col(df_out, 'road_area_category_id')
 
-    table = Table()
-    table.data = df_out[['road_area_category_id', 'name', 'code']]
+    table = adp.Table()
+    table.data = df_out[['road_area_category_id', 'code', 'name']]
     table.name = 'road_area_categories'
     return(table)
 
@@ -226,10 +240,10 @@ def create_table_road_type_categories():
     })
 
     df_out = _make_code(df_out)
-    df_out = _create_id_col(df_out, 'road_type_category_id')
+    df_out = adp._create_id_col(df_out, 'road_type_category_id')
 
-    table = Table()
-    table.data = df_out[['road_type_category_id', 'name', 'code']]
+    table = adp.Table()
+    table.data = df_out[['road_type_category_id', 'code', 'name']]
     table.name = 'road_type_categories'
     return(table)
 
@@ -244,10 +258,10 @@ def create_table_road_vehicle_categories():
     })
 
     df_out = _make_code(df_out)
-    df_out = _create_id_col(df_out, 'road_vehicle_category_id')
+    df_out = adp._create_id_col(df_out, 'road_vehicle_category_id')
 
-    table = Table()
-    table.data = df_out[['road_vehicle_category_id', 'name', 'code']]
+    table = adp.Table()
+    table.data = df_out[['road_vehicle_category_id', 'code', 'name']]
     table.name = 'road_vehicle_categories'
     return(table)
 
@@ -267,9 +281,9 @@ def create_table_road_speed_profiles():
 
     # this is not used in UK aerius
     df_out['speed_limit_enforcement'] = 'irrelevant'
-    df_out = _create_id_col(df_out, 'road_speed_profile_id')
+    df_out = adp._create_id_col(df_out, 'road_speed_profile_id')
 
-    table = Table()
+    table = adp.Table()
     table.data = df_out[['road_speed_profile_id', 'speed_limit_enforcement',
                          'maximum_speed', 'gradient']]
     table.name = 'road_speed_profiles'
@@ -281,6 +295,7 @@ def create_table_road_areas_to_road_types():
     can only be found in the london area'''
 
     df = read_road_data()
+
     # we want onlt the unique combos of road_type and road_area
     df_out = df[['country', 'road_type']]
     df_out.drop_duplicates(inplace=True)
@@ -289,7 +304,7 @@ def create_table_road_areas_to_road_types():
     df_out['road_area_category_id'] = _convert_road_area(df_out)
     df_out['road_type_category_id'] = _convert_road_type(df_out)
 
-    table = Table()
+    table = adp.Table()
     table.data = df_out[['road_area_category_id', 'road_type_category_id']]
     table.name = 'road_areas_to_road_types'
     return(table)
@@ -301,6 +316,7 @@ def create_table_road_types_to_speed_profiles():
     '''
 
     df = read_road_data()
+
     # we want only the unique combos of road_type and speed profile
     df_out = df[['maximum_speed', 'gradient', 'road_type']]
     df_out.drop_duplicates(inplace=True)
@@ -309,7 +325,7 @@ def create_table_road_types_to_speed_profiles():
     df_out['road_type_category_id'] = _convert_road_type(df_out)
     df_out['road_speed_profile_id'] = _convert_speed_profiles(df_out)
 
-    table = Table()
+    table = adp.Table()
     table.data = df_out[['road_type_category_id', 'road_speed_profile_id']]
     table.name = 'road_types_to_speed_profiles'
     return(table)
@@ -321,6 +337,7 @@ def create_table_road_categories():
     '''
 
     df = read_road_data()
+
     # we want all the unique combos
     df_out = df[['maximum_speed', 'gradient', 'road_type',
                  'country', 'vehicle_type']]
@@ -332,9 +349,9 @@ def create_table_road_categories():
     df_out['road_type_category_id'] = _convert_road_type(df_out)
     df_out['road_vehicle_category_id'] = _convert_vehicle_type(df_out)
 
-    df_out = _create_id_col(df_out, 'road_category_id')
+    df_out = adp._create_id_col(df_out, 'road_category_id')
 
-    table = Table()
+    table = adp.Table()
     table.data = df_out[[
         'road_category_id', 'road_area_category_id', 'road_type_category_id',
         'road_vehicle_category_id', 'road_speed_profile_id'
@@ -365,11 +382,11 @@ def create_table_road_category_emission_factors():
     # stagnated emissions factor is not something used by UK aerius
     df_final['stagnated_emission_factor'] = df_final['emission_factor']
     df_final['substance_id'] = df_final['substance_id'].replace(
-                                    'nox', get_substance_id('nox'))
+                                    'nox', adp.get_substance_id('nox'))
     df_final['substance_id'] = df_final['substance_id'].replace(
-                                    'NH3', get_substance_id('NHx'))
+                                    'NH3', adp.get_substance_id('NHx'))
 
-    table = Table()
+    table = adp.Table()
     table.data = df_final[['road_category_id', 'year', 'substance_id',
                            'emission_factor', 'stagnated_emission_factor']]
     table.name = 'road_category_emission_factors'
