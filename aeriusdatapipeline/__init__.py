@@ -26,3 +26,11 @@ from .road_emissions import create_table_road_areas_to_road_types
 from .road_emissions import create_table_road_types_to_speed_profiles
 from .road_emissions import create_table_road_categories
 from .road_emissions import create_table_road_category_emission_factors
+
+# The functions used by the modules
+# loaded here so the module can be loaded by tests
+from .lib_database_create import get_substance_id
+from .lib_database_create import _create_id_col
+from .lib_database_create import _convert_id
+from .lib_database_create import _create_dictionary_from_df
+from .export import Table
