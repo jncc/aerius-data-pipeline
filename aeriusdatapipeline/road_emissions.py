@@ -12,10 +12,6 @@ nox_path = './data/Road-emissions/final/nox.xlsx'
 nh3_path = './data/Road-emissions/final/road_emissions_nh3.xlsx'
 hdv_path = './data/Road-emissions/final/hdv.xlsx'
 
-df_nh3 = pd.read_excel(nh3_path)
-df_nx = pd.read_excel(nox_path)
-df_hdv = pd.read_excel(hdv_path)
-
 
 def expand_feature(df, name, expansion_list):
     '''the nh3 data doesn't vary by speed or gradient so doesnt have
@@ -32,7 +28,9 @@ def expand_feature(df, name, expansion_list):
     return(pd.concat(var_dfs))
 
 
-def prep_nh3_data(df_nh3=df_nh3):
+def prep_nh3_data():
+
+    df_nh3 = pd.read_excel(nh3_path)
 
     df_nh3 = expand_feature(df_nh3, 'maximum_speed',
                             [5, 16, 32, 48, 64, 80, 97, 113, 127, 140])
@@ -49,7 +47,9 @@ def prep_nh3_data(df_nh3=df_nh3):
     return(pd.concat([df_s, df_hdv]))
 
 
-def prep_nox_data(df_nx=df_nx):
+def prep_nox_data():
+
+    df_nx = pd.read_excel(nox_path)
 
     # convert it to /s
     df_nx['emission_factor'] = df_nx['emission_factor'] / 86400
@@ -58,7 +58,9 @@ def prep_nox_data(df_nx=df_nx):
     return(df_nx)
 
 
-def prep_hdv_data(df_hdv=df_hdv):
+def prep_hdv_data():
+
+    df_hdv = pd.read_excel(hdv_path)
 
     # convert it to /s
     df_hdv['emission_factor'] = df_hdv['emission_factor'].astype(float) / 86400
@@ -280,7 +282,7 @@ def create_table_road_speed_profiles():
     df_out.drop_duplicates(inplace=True)
 
     # this is not used in UK aerius
-    df_out['speed_limit_enforcement'] = 'irrelevant'
+    df_out['speed_limit_enforcement'] = 'not_strict'
     df_out = adp._create_id_col(df_out, 'road_speed_profile_id')
 
     table = adp.Table()
@@ -384,7 +386,7 @@ def create_table_road_category_emission_factors():
     df_final['substance_id'] = df_final['substance_id'].replace(
                                     'nox', adp.get_substance_id('nox'))
     df_final['substance_id'] = df_final['substance_id'].replace(
-                                    'NH3', adp.get_substance_id('NHx'))
+                                    'NH3', adp.get_substance_id('nh3'))
 
     table = adp.Table()
     table.data = df_final[['road_category_id', 'year', 'substance_id',
