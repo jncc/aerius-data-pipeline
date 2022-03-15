@@ -152,7 +152,9 @@ def get_emissions(file):
     df_em = pd.concat([df_housing_em, df_grazing_em, df_yard_em, df_storage_em,
                        df_spreading_em], axis=0)
 
-    return(df_em)
+    # return(df_em)
+    # Just housing for MVP
+    return(df_housing_em)
 
 
 def get_reductions(file):
@@ -171,7 +173,9 @@ def get_reductions(file):
 
     # the col names in create_sub_df are named for emissions so need
     # to be renamed for reductions
-    return(df_mit.rename(columns={'emmision_factor': 'reduction_factor'}))
+    # return(df_mit.rename(columns={'emmision_factor': 'reduction_factor'}))
+    # Just housing for MVP
+    return(df_housing_mit.rename(columns={'emmision_factor': 'reduction_factor'}))
 
 
 def get_full_df(get_func, path=root_path):
