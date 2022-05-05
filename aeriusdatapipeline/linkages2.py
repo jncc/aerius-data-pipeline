@@ -7,7 +7,10 @@ from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
 
 import pandas as pd
+import numpy as np
 import geopandas as gpd
+# used for checking purposes sometimes
+# import matplotlib.pyplot as plt
 
 from .lib_database_create import get_substance_id
 from .lib_database_create import _create_id_col
@@ -21,13 +24,11 @@ from .export import Table
 ########################################################################
 
 data = "./data/linkages_table/"
-critical_levels = "./data/linkages_table/APIS-interest-feature-critical-load-\
-                                                        linkages_simplBB.xlsx"
+critical_levels = "./data/linkages_table/APIS-interest-feature-critical-load-linkages_simplBB.xlsx"
 levels_tab = "LINKAGES-FEATURE to CLOADS"
 links = './data/linkages_table/feature_contry_v2.csv'
 
-lpa_shape = './data/Local_Planning_Authorities/Local_Planning_Authorities_(\
-                                                        April_2019)_UK_BUC.shp'
+lpa_shape = './data/Local_Planning_Authorities/Local_Planning_Authorities_(April_2019)_UK_BUC.shp'
 
 sac_shape = './data/Sites/ SAC_BNG.shp'
 spa_shape = './data/Sites/ SPA_BNG.shp'
@@ -169,15 +170,15 @@ def import_sites_from_shape():
     df_spa['design_status_description'] = 'SPA'
     df_spa.drop_duplicates('SITECODE', inplace=True)
     df_sssi = gpd.read_file(sssi_shape)
-    df_sssi['design_status_description'] = 'SSSI'
+    df_sssi['design_status_description'] = 'SSSI_ASSI'
     df_sssi.drop_duplicates('SITECODE', inplace=True)
 
-    # Converting polygons to multipolygons using shapely
-    # needed to fit into the db
     df_all = gpd.GeoDataFrame(pd.concat([df_sac, df_spa, df_sssi],
                                         ignore_index=True))
     df_all = _create_id_col(df_all, 'assessment_area_id')
 
+    # Converting polygons to multipolygons using shapely
+    # needed to fit into the db
     df_all["geometry"] = [MultiPolygon([feature]) if type(feature) == Polygon
                           else feature for feature in df_all["geometry"]]
 
@@ -261,6 +262,93 @@ def setup_natura_tables():
     df_site['natura2000_area_id'] = df_site['assessment_area_id']
 
     return(df_site)
+
+
+########################################################################
+# Extra data from NI
+########################################################################
+
+def prep_ni_data(df) -> pd.DataFrame:
+    '''takes the NI shapefile and converts the habitat to the right
+    format, the coord system and creates multipolygons
+    '''
+    # getting the total area for coverage percentages
+    total_area = df['geometry'].area.sum()
+
+    # getting rid of weird habitat names
+    df = df.loc[df['Annex1'].notna()]
+    # there are habitats with / or * in them. we need these though so
+    # they should be changed rather than removed
+    # df = df[~df["Annex1"].str.contains("/|\*")]
+    df = df.replace({
+        '7110*': '7110',
+        '7110*/7120': '7120'
+    })
+
+    # combines the polygons into mulitpolygons
+    df_n = df.dissolve(by='Annex1').reset_index()
+    # Converts any remaining polygons into multipolygons with only
+    # one polygon. needed for db
+    df_n["geometry"] = [MultiPolygon([feature]) if type(feature) == Polygon
+                        else feature for feature in df_n["geometry"]]
+    # getting the areas of the habitats for the coverage
+    df_n['coverage'] = df_n["geometry"].area
+    df_n['coverage'] = df_n['coverage'] / total_area
+
+    # converting the name to same format as usual for join
+    df_n['INTERESTCODE'] = 'H' + df_n['Annex1']
+    df_n['INTERESTTYPECODE'] = 'H'
+    return(df_n)
+
+
+def site_specific_geoms():
+    '''This prepares the separate NI site files with specific habitat shapes.
+    There is a lot of overlap here with the create table habitat areas.
+    '''
+    d_dir = './data/NI-habitat_maps/'
+    df_b1 = gpd.read_file(d_dir + 'BallynahoneBogHabMap_FINAL.shp')
+    # converting from irish grid to bng grid
+    df_b1 = df_b1.to_crs(27700)
+    df_b1['SITECODE'] = 'ASSI010'
+
+    df_b2 = gpd.read_file(d_dir + 'BallynahoneBogHabMap_FINAL.shp')
+    df_b2 = df_b2.to_crs(27700)
+    df_b2['SITECODE'] = 'UK0016599'
+
+    df_p1 = gpd.read_file(d_dir + 'PeatlandsParkv3_Output.shp')
+    df_p1 = df_p1.to_crs(27700)
+    df_p1['SITECODE'] = 'ASSI210'
+
+    df_p2 = gpd.read_file(d_dir + 'PeatlandsParkv3_Output.shp')
+    df_p2 = df_p2.to_crs(27700)
+    df_p2['SITECODE'] = 'UK0030236'
+
+    df_t = pd.concat([
+        prep_ni_data(df_b1),
+        prep_ni_data(df_b2),
+        prep_ni_data(df_p1),
+        prep_ni_data(df_p2)
+        ])
+
+    df_f = import_feat_sens()
+    df_f = clean_feat(df_f)
+    df_f = make_feat_codes(df_f)
+
+    df_s = import_sites_from_shape()
+    # df_s = get_lpa_geoms(df_s)
+
+    df_full = pd.merge(
+        df_t, df_f[['INTERESTCODE', 'INTERESTTYPECODE', 'habitat_type_id']],
+        how='outer', on=['INTERESTCODE', 'INTERESTTYPECODE']
+        )
+    df_full = df_full[df_full['habitat_type_id'].notna()]
+    df_full = pd.merge(
+        df_full, df_s[['SITECODE', 'assessment_area_id']],
+        how='inner'
+        )
+
+    return(df_full)
+
 
 ########################################################################
 # Create table functions
@@ -380,23 +468,48 @@ def create_table_habitat_areas():
     df_f = make_feat_codes(df_f)
 
     df_s = import_sites_from_shape()
+    # the data from lpa isnt needed but this pairs the habitats down
+    # to only the land sites as sea sites dont have an lpa
     df_s = get_lpa_geoms(df_s)
 
     df_full = pd.merge(
         df_l, df_f[['INTERESTCODE', 'INTERESTTYPECODE', 'habitat_type_id']],
-        how='outer', on=['INTERESTCODE', 'INTERESTTYPECODE']
+        how='left', on=['INTERESTCODE', 'INTERESTTYPECODE']
         )
     df_full = df_full[df_full['habitat_type_id'].notna()]
     df_full = pd.merge(
         df_full, df_s[['SITECODE', 'assessment_area_id', 'geometry']],
-        how='inner'
+        how='left'
         )
+    df_full = df_full[df_full['assessment_area_id'].notna()]
 
-    df_full = _create_id_col(df_full, 'habitat_area_id')
+    # For visual checking of the sites
+    # gdf = gpd.GeoDataFrame(df_full, geometry='geometry')
+    # gdf.plot()
+    # plt.show()
+
+    # Full coverage for all the habitats that dont have specific maps
     df_full['coverage'] = 1
 
+    # These are the specific habitat geometries given by NI/Hayley
+    df_ss = site_specific_geoms()
+
+    # needs to have the site specific ones first as drop duplicates later
+    # will keep the first value
+    kcols = ['assessment_area_id', 'habitat_type_id', 'coverage', 'geometry']
+    df_full2 = pd.concat([
+        df_ss[kcols],
+        df_full[kcols]
+    ])
+    # There are same habitats in the site specific and in the generic data
+    df_full2.drop_duplicates(['assessment_area_id', 'habitat_type_id'],
+                             inplace=True)
+    df_full2.sort_values(['assessment_area_id', 'habitat_type_id'],
+                         inplace=True)
+    df_full2 = _create_id_col(df_full2, 'habitat_area_id')
+
     table = Table()
-    table.data = df_full[['assessment_area_id', 'habitat_area_id',
+    table.data = df_full2[['assessment_area_id', 'habitat_area_id',
                           'habitat_type_id', 'coverage', 'geometry']]
     table.name = 'habitat_areas'
     return(table)
@@ -419,39 +532,51 @@ def create_table_natura2000_areas():
     return(table)
 
 
-def create_table_natura2000_directive_areas():
-    '''assigns the type as directive area as well as give info on
-    the bird and habitat directives for the natura2000_directive table
-    '''
+def create_table_natura2000_directives():
+    '''there are only four options currently for the types of site
+    and these have specific species and habitat directives'''
 
-    df = setup_natura_tables()
-
-    df['type'] = 'natura2000_directive_area'
-    # df['type'] = df['design_status_description']
-
-    def assign_bird_dir(df):
-        if df['design_status_description'] == 'SPA':
-            return('t')
-        return('f')
-    df['bird_directive'] = df.apply(lambda df: assign_bird_dir(df), axis=1)
-
-    def assign_hab_dir(df):
-        if df['design_status_description'] == 'SAC':
-            return('t')
-        return('f')
-    df['habitat_directive'] = df.apply(lambda df: assign_hab_dir(df), axis=1)
-
-    # df['bird_directive'] = 'f'
-    # df['habitat_directive'] = 'f'
-
-    df['assessment_area_id'] = df['assessment_area_id'] + 1000000
-    df['natura2000_directive_area_id'] = df['assessment_area_id']
+    # Data frame created like this to link the id with name
+    # we dont want them getting mixed as more are added or taken away
+    all_sub = np.array([
+        ['1', 'unassigned', 'Unassigned', 'f', 'f'],
+        ['2', 'SAC', 'Special Area of Conservation', 't', 'f'],
+        ['3', 'SPA', 'Special Protection Area', 'f', 't'],
+        ['4', 'SSSI_ASSI', 'Site of Special Scientific Interest or Area of \
+                                        Special Scientific Interest', 't', 't']
+        ])
 
     table = Table()
-    table.data = df[[
+    table.data = pd.DataFrame(
+        all_sub,
+        columns=['natura2000_directive_id', 'directive_code', 'directive_name',
+                 'habitat_directive', 'species_directive']
+        )
+    table.name = 'natura2000_directives'
+    return(table)
+
+
+def create_table_natura2000_directive_areas():
+
+    df = setup_natura_tables()
+    df['type'] = 'natura2000_directive_area'
+
+    df_dir = create_table_natura2000_directives()
+    df_a = pd.merge(df, df_dir.data, how='left',
+                    left_on='design_status_description',
+                    right_on='directive_code')
+
+    # even though the assessment areas are the same as the areas in
+    # the natura2000 table, they are treated as different areas so
+    # different ids are needed
+    df_a['assessment_area_id'] = df_a['assessment_area_id'] + 1000000
+    df_a['natura2000_directive_area_id'] = df_a['assessment_area_id']
+
+    table = Table()
+    table.data = df_a[[
         'assessment_area_id', 'type', 'name', 'code', 'authority_id',
         'geometry', 'natura2000_directive_area_id', 'natura2000_area_id',
-        'bird_directive', 'habitat_directive', 'design_status_description'
+        'natura2000_directive_id', 'design_status_description'
         ]]
     table.name = 'natura2000_directive_areas'
     return(table)

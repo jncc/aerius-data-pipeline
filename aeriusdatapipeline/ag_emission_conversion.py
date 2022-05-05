@@ -54,39 +54,6 @@ animal_rename = {
 #########################################################################
 
 
-def _create_housing_sub_df(df, section):
-    '''Creates a subset of the main df for the different systems
-    and mitigation systems. Only works for housing. Takes a string
-    and returns a dataframe
-    '''
-
-    # Column Name variables
-    animal_type = df.columns[0]
-    country_year = df.columns[1]
-    housing_system_emm = df.columns[3]
-    year = country_year[-4:]
-
-    # finds blank row indicies to find the data around them
-    # needs to be an array for argmax function later
-    blank_rows = np.array(df.index[df[animal_type].isna()].tolist())
-
-    header_index = df.index[df[animal_type] == section].tolist()[0]
-    next_blank_index = blank_rows[np.argmax(blank_rows > header_index)+1]
-
-    subdf = df.iloc[header_index+2:next_blank_index]
-    subdf_len = subdf.shape[0]
-
-    df_final = pd.DataFrame({
-        'farm_type': subdf[animal_type].tolist(),
-        'source': [section]*subdf_len,
-        'emmision_factor': subdf[housing_system_emm].tolist(),
-        'animal': [animal_type]*subdf_len,
-        'year': [year]*subdf_len
-        })
-
-    return(df_final)
-
-
 def _create_sub_df(df, section):
     '''Creates a subset of the main df for the different systems
     and mitigation systems. Doesn't work on housing. Takes a string
@@ -142,15 +109,15 @@ def get_emissions(file):
 
     df_full = process_ag_emissions_data(file)
 
-    # df_housing_em = _create_housing_sub_df(df_full, "Housing systems")
     df_housing_em = _create_sub_df(df_full, "Housing systems")
-    df_grazing_em = _create_sub_df(df_full, "Grazing emissions")
-    df_yard_em = _create_sub_df(df_full, "Outdoor yards (collecting/feeding)")
-    df_storage_em = _create_sub_df(df_full, "Manure storage")
-    df_spreading_em = _create_sub_df(df_full, "Manure spreading")
+    # df_grazing_em = _create_sub_df(df_full, "Grazing emissions")
+    # df_yard_em = _create_sub_df(df_full, "Outdoor yards (collecting/feeding)")
+    # df_storage_em = _create_sub_df(df_full, "Manure storage")
+    # df_spreading_em = _create_sub_df(df_full, "Manure spreading")
 
-    df_em = pd.concat([df_housing_em, df_grazing_em, df_yard_em, df_storage_em,
-                       df_spreading_em], axis=0)
+    # Include this when we want the whole ag emissions
+    # df_em = pd.concat([df_housing_em, df_grazing_em, df_yard_em,
+    #                    df_storage_em, df_spreading_em], axis=0)
 
     # return(df_em)
     # Just housing for MVP
@@ -164,12 +131,14 @@ def get_reductions(file):
     df_full = process_ag_emissions_data(file)
 
     df_housing_mit = _create_sub_df(df_full, "Housing mitigation")
-    df_yard_mit = _create_sub_df(df_full, "Yard mitigation")
-    df_storage_mit = _create_sub_df(df_full, "Storage mitigation")
-    df_spreading_mit = _create_sub_df(df_full, "Spreading mitigation")
+    # df_yard_mit = _create_sub_df(df_full, "Yard mitigation")
+    # df_storage_mit = _create_sub_df(df_full, "Storage mitigation")
+    # df_spreading_mit = _create_sub_df(df_full, "Spreading mitigation")
 
-    df_mit = pd.concat([df_housing_mit, df_yard_mit, df_storage_mit,
-                        df_spreading_mit], axis=0)
+    # include this when we want all the reductions to match all
+    # the emissions (for mvp we only want housing)
+    # df_mit = pd.concat([df_housing_mit, df_yard_mit, df_storage_mit,
+    #                     df_spreading_mit], axis=0)
 
     # the col names in create_sub_df are named for emissions so need
     # to be renamed for reductions
@@ -368,7 +337,7 @@ def create_table_farm_reductive_lodging_system():
                         df_new['farm_animal_category_id'].replace(name, id)
     # creating a mitigation system id
     df_new = _create_id_col(df_new, 'farm_reductive_lodging_system_id')
-    
+
     # the code comes from the animal type
     df_new['code'] = df_new['code'].replace(animal_rename)
     # the code then needs to have an extra part for the type of emission
@@ -383,7 +352,7 @@ def create_table_farm_reductive_lodging_system():
     df_new['name'] = df_new.apply(
         lambda df_new: insert_space(df_new['name']), axis=1
         )
-    
+
     table = Table()
     table.data = df_new[[
         'farm_reductive_lodging_system_id', 'farm_animal_category_id', 'code',

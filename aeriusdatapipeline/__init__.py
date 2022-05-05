@@ -17,6 +17,7 @@ from .linkages2 import create_table_habitat_type_critical_levels
 from .linkages2 import create_table_habitat_areas
 from .linkages2 import create_table_natura2000_areas
 from .linkages2 import create_table_natura2000_directive_areas
+from .linkages2 import create_table_natura2000_directives
 
 from .road_emissions import create_table_road_area_categories
 from .road_emissions import create_table_road_type_categories

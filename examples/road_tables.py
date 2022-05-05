@@ -4,7 +4,7 @@ import aeriusdatapipeline as adp
 
 if __name__ == "__main__":
 
-    output_c = 'aerius_data_09-03-10'
+    output_c = 'aerius_data_22-04-19'
 
     df_area = adp.create_table_road_area_categories()
     df_area.export_data(output_c)

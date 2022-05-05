@@ -2,22 +2,25 @@ import aeriusdatapipeline as adp
 
 if __name__ == "__main__":
 
-    output_c = 'aerius_data_test'
+    output_c = 'aerius_data_22-04-19'
 
-    df_feat = adp.create_table_habitat_types()
-    df_feat.export_data(output_c)
+    # df_feat = adp.create_table_habitat_types()
+    # df_feat.export_data(output_c)
 
-    df_sens = adp.create_table_habitat_type_critical_levels()
-    df_sens.export_data(output_c)
+    # df_sens = adp.create_table_habitat_type_critical_levels()
+    # df_sens.export_data(output_c)
 
     df_areas = adp.create_table_habitat_areas()
     df_areas.export_data(output_c)
 
-    df_nat = adp.create_table_natura2000_areas()
-    df_nat.export_data(output_c)
+    # df_nat = adp.create_table_natura2000_areas()
+    # df_nat.export_data(output_c)
 
-    df_nat_dir = adp.create_table_natura2000_directive_areas()
-    df_nat_dir.export_data(output_c)
+    # df_nat_dir = adp.create_table_natura2000_directive_areas()
+    # df_nat_dir.export_data(output_c)
+
+    # df_directives = adp.create_table_natura2000_directives()
+    # df_directives.export_data(output_c)
 
     # Checking for the feats that are not in the sens table
     # pd.DataFrame({'missing_feats': df_link[df_link['habitat_type_id'].isna()]['INTERESTCODE'].unique()}).to_csv('missing_feats.csv', index=False)
