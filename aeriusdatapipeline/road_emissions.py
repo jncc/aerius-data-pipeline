@@ -18,7 +18,6 @@ def expand_feature(df, name, expansion_list):
     that variable. this gives it a row for each combination
     and assigns it the same emissions value
     '''
-
     var_dfs = []
     for var in expansion_list:
         df_var = copy.copy(df)
@@ -29,7 +28,6 @@ def expand_feature(df, name, expansion_list):
 
 
 def prep_nh3_data():
-
     df_nh3 = pd.read_excel(nh3_path)
 
     df_nh3 = expand_feature(df_nh3, 'maximum_speed',
@@ -48,7 +46,6 @@ def prep_nh3_data():
 
 
 def prep_nox_data():
-
     df_nx = pd.read_excel(nox_path)
 
     # convert it to /s
@@ -59,7 +56,6 @@ def prep_nox_data():
 
 
 def prep_hdv_data():
-
     df_hdv = pd.read_excel(hdv_path)
 
     # convert it to /s
@@ -87,6 +83,7 @@ def convert_100_to_vehicle(df):
     # TODO improve this so no ifs. replace 100 with col name + add all
     # cols together
     def get_vehicle_type(df_sub):
+        print('road_emmission_script+get_vehicle_type')
         '''converts the 100% to the name of the vehicle in the data'''
         if df_sub['Car'] == 100.0:
             return('Car')
@@ -131,8 +128,8 @@ def _make_code(df_code):
     '''takes the frst three letters to make the code and adds a number
     suffix for duplicate codes
     '''
-
     def _code_start(row):
+        print('_code_start')
         '''takes the first three letters to make the code'''
         return(row['name'][0:3])
 
@@ -153,7 +150,6 @@ def _convert_speed_profiles(df_convert):
     '''making a combination of speed and gradient for the speed
     profile and converting to id
     '''
-
     # need to have a single column to convert to ID
     df_convert['speed_profile'] = df_convert['maximum_speed'].astype(str)\
         + '-' + df_convert['gradient'].astype(str)
@@ -198,7 +194,6 @@ def _convert_road_area(df_convert):
 
 def _convert_vehicle_type(df_convert):
     '''creating the vehicle type df to convert the road type to id'''
-
     df_vehicle = create_table_road_vehicle_categories().data
     vehicle_dic = adp._create_dictionary_from_df(
         df_vehicle[['name', 'road_vehicle_category_id']]
@@ -216,7 +211,6 @@ def _convert_vehicle_type(df_convert):
 
 def create_table_road_area_categories():
     '''creating the road area table'''
-
     df = read_road_data()
 
     df_out = pd.DataFrame({
@@ -234,7 +228,6 @@ def create_table_road_area_categories():
 
 def create_table_road_type_categories():
     '''creating the road type table'''
-
     df = read_road_data()
 
     df_out = pd.DataFrame({
@@ -252,7 +245,6 @@ def create_table_road_type_categories():
 
 def create_table_road_vehicle_categories():
     '''creating the vehicle type table'''
-
     df = read_road_data()
 
     df_out = pd.DataFrame({
@@ -273,7 +265,6 @@ def create_table_road_speed_profiles():
     gradient and speed enforcement. speed enforcement is not currently
     used in uk aerius
     '''
-
     df = read_road_data()
 
     # a speed profile for UK aerius is the combo of max speed
@@ -295,7 +286,6 @@ def create_table_road_speed_profiles():
 def create_table_road_areas_to_road_types():
     '''creates the combinations of road area to road type. ie london roads
     can only be found in the london area'''
-
     df = read_road_data()
 
     # we want onlt the unique combos of road_type and road_area
@@ -316,7 +306,6 @@ def create_table_road_types_to_speed_profiles():
     '''creates the combinations of road type with speed profile.
     we currently keep all combinations to aid with interpolation
     '''
-
     df = read_road_data()
 
     # we want only the unique combos of road_type and speed profile
@@ -337,7 +326,6 @@ def create_table_road_categories():
     '''creates the combos of all the above types to give a full
     road category
     '''
-
     df = read_road_data()
 
     # we want all the unique combos
@@ -364,7 +352,6 @@ def create_table_road_categories():
 
 def create_table_road_category_emission_factors():
     '''gives the emissions factor for each year for each road category'''
-
     df = read_road_data()
 
     df_out = df[['maximum_speed', 'gradient', 'road_type', 'country',

@@ -1,3 +1,319 @@
+
+def _create_dictionary_from_df(df):
+    '''creates a dictionary for name swaps beteen the code and the name.
+    Takes a dictionary with only two columns as argument. The first col
+    will be the keys, the second will be the values
+    '''
+    print('lib_database_create_script+_create_dictionary_from_df')
+    df = df.drop_duplicates()
+    # creating the dictionary from the two columns of the dataframe
+    # to use to_dict, the index should be the keys
+    feat_name_dict = pd.Series(df[df.columns[1]].values,
+                               index=df[df.columns[0]]).to_dict()
+
+    return(feat_name_dict)
+
+
+def _create_id_col(df, id_colname):
+    '''creates a column for the db tables with a unique ID'''
+    print('lib_database_create_script+_create_id_col')
+    # _check_unique_rows(df)
+
+    df = df.drop_duplicates()
+    df = df.reset_index(drop=True)
+    df[id_colname] = df.index
+    df[id_colname] = df[id_colname] + 1
+    df[id_colname] = df[id_colname].astype(str)
+    return(df)
+
+
+def _convert_id(df_col, rename):
+    '''converts colnames into substanc_id with dictionary'''
+    print('lib_database_create_script+_convert_id')
+    for colname, substance_id in rename.items():
+        df_col = df_col.replace(colname, substance_id)
+    return(df_col)
+
+########################################################################
+# Internal data validation and QC functions
+########################################################################
+
+
+def _check_unique_rows(df):
+    '''Checking that the dataframe has unique IDs (the individual rows
+    in the postgresDB)
+    '''
+    print('lib_database_create_script+_check_unique_rows')
+    cols = list(df.columns)
+    # if these are the same then all rows are unique IDs
+    if df.shape[0] == df.groupby(cols).ngroups:
+        return()
+
+    # inspect.stack()[1][3] gives the name of the function that called
+    print('\n!!!!!!!Warning!!!!!!!!!!!!\n'
+          + str(df.shape[0] - df.groupby(cols).ngroups)
+          + ' rows in '+inspect.stack()[2][3]+' are duplicated.\n')
+    duplicate = df[df.duplicated(cols)]
+    print(duplicate)
+
+########################################################################
+# Useful functions
+########################################################################
+
+
+def get_id(df, col_ref, col_id, name):
+    print('lib_database_create_script+get_id')
+    return(df.loc[df[col_ref] == name, col_id].values[0])
+
+
+def get_substance_id(name):
+    print('lib_database_create_script+get_substance_id')
+    '''a way to consistently get the right substance id'''
+    df = create_table_substances().data
+    return(df.loc[df['name'] == name, 'substance_id'].values[0])
+
+########################################################################
+
+
+def create_table_substances():
+    '''Creates the substance table. Takes no argument and returns a df'''
+    print('lib_database_create_script+create_table_substances')
+    # Data frame created like this to link the id with name
+    # we dont want them getting mixed as more are added or taken away
+    all_sub = np.array([
+        [1, 'so2', 'sulphur dioxide'],
+        [2,	'co2',	'carbon dioxide'],
+        [4,	'co',	'carbon monoxide'],
+        [7,	'no2',	'nitrogen dioxide'],
+        [8,	'bap',	'benzo(a)pyrene'],
+        [9,	'c6h6',	'benzene'],
+        [10, 'pm10',	'particulate matter 10'],
+        [11,	'nox',	'nitrous oxides'],
+        [14, 'o3',	'ozone'],
+        [15,	'pm25',	'particulate matter 2.5'],
+        [17,	'nh3',	'ammonia'],
+        [98,	'fno2',	'nitryl fluoride'],
+        [99,	'cop98',	'carbon monoxide 98th percentile'],
+        [101,	'NOy',	'sum of all oxidized atmospheric odd-nitrogen species'],
+        [102,	'NHx',	'all ammonia reduction levels'],
+        [201,	'N',	'nitrogen'],
+        [18,	'ec',	'elemental carbon'],
+        [1711, 'ndep', 'nitrogen deposition'],
+        [1000, 'adep', 'acid deposition']
+        ])
+
+    table = Table()
+    table.data = pd.DataFrame(
+        all_sub, columns=['substance_id', 'name', 'description']
+        )
+    table.name = 'substances'
+    return(table)
+
+
+def create_table_example_authorities():
+    '''Creates the substance table. Takes no argument and returns a df'''
+    print('lib_database_create_script+create_table_example_authorities')
+    # Data frame created like this to link the id with name
+    # we dont want them getting mixed as more are added or taken away
+    all_sub = np.array([
+        [1003, 4, 'City of Belfast',	'City of Belfast', 'unknown'],
+        [1015, 1, 'Bedford (B)',	'Bedford (B)', 'unknown'],
+        [1108, 3, 'Gwynedd - Gwynedd', 'Gwynedd - Gwynedd', 'unknown'],
+        [1165, 2, 'Shetland Islands',	'Shetland Islands',	'unknown']
+        ])
+
+    return(pd.DataFrame(
+        all_sub,
+        columns=['authority_id', 'country_id', 'code', 'name', 'type']
+        ))
+
+
+def create_table_countries():
+    '''Creates the table for countries, all manually put entered'''
+    print('lib_database_create_script+create_table_countries')
+    all_sub = np.array([[1, 'E', 'England'],
+                        [2, 'S', 'Scotland'],
+                        [3, 'W', 'Wales'],
+                        [4, 'N', 'Northern Ireland'],
+                        [5, 'SE', 'Scotland/England'],
+                        [6, 'WE', 'Wales/England']])
+
+    table = Table()
+    table.data = pd.DataFrame(all_sub,
+                              columns=['country_id', 'code', 'name'])
+    table.name = 'countries'
+    return(table)
+
+def _create_dictionary_from_df(df):
+    '''creates a dictionary for name swaps beteen the code and the name.
+    Takes a dictionary with only two columns as argument. The first col
+    will be the keys, the second will be the values
+    '''
+    print('lib_database_create_script+_create_dictionary_from_df')
+    df = df.drop_duplicates()
+    # creating the dictionary from the two columns of the dataframe
+    # to use to_dict, the index should be the keys
+    feat_name_dict = pd.Series(df[df.columns[1]].values,
+                               index=df[df.columns[0]]).to_dict()
+
+    return(feat_name_dict)
+
+
+def _create_id_col(df, id_colname):
+    '''creates a column for the db tables with a unique ID'''
+    print('lib_database_create_script+_create_id_col')
+    # _check_unique_rows(df)
+
+    df = df.drop_duplicates()
+    df = df.reset_index(drop=True)
+    df[id_colname] = df.index
+    df[id_colname] = df[id_colname] + 1
+    df[id_colname] = df[id_colname].astype(str)
+    return(df)
+
+
+def _convert_id(df_col, rename):
+    '''converts colnames into substanc_id with dictionary'''
+    print('lib_database_create_script+_convert_id')
+    for colname, substance_id in rename.items():
+        df_col = df_col.replace(colname, substance_id)
+    return(df_col)
+
+########################################################################
+# Internal data validation and QC functions
+########################################################################
+
+
+def _check_unique_rows(df):
+    '''Checking that the dataframe has unique IDs (the individual rows
+    in the postgresDB)
+    '''
+    print('lib_database_create_script+_check_unique_rows')
+    cols = list(df.columns)
+    # if these are the same then all rows are unique IDs
+    if df.shape[0] == df.groupby(cols).ngroups:
+        return()
+
+    # inspect.stack()[1][3] gives the name of the function that called
+    print('\n!!!!!!!Warning!!!!!!!!!!!!\n'
+          + str(df.shape[0] - df.groupby(cols).ngroups)
+          + ' rows in '+inspect.stack()[2][3]+' are duplicated.\n')
+    duplicate = df[df.duplicated(cols)]
+    print(duplicate)
+
+########################################################################
+# Useful functions
+########################################################################
+
+
+def get_id(df, col_ref, col_id, name):
+    print('lib_database_create_script+get_id')
+    return(df.loc[df[col_ref] == name, col_id].values[0])
+
+
+def get_substance_id(name):
+    print('lib_database_create_script+get_substance_id')
+    '''a way to consistently get the right substance id'''
+    df = create_table_substances().data
+    return(df.loc[df['name'] == name, 'substance_id'].values[0])
+
+########################################################################
+
+
+def create_table_substances():
+    '''Creates the substance table. Takes no argument and returns a df'''
+    print('lib_database_create_script+create_table_substances')
+    # Data frame created like this to link the id with name
+    # we dont want them getting mixed as more are added or taken away
+    all_sub = np.array([
+        [1, 'so2', 'sulphur dioxide'],
+        [2,	'co2',	'carbon dioxide'],
+        [4,	'co',	'carbon monoxide'],
+        [7,	'no2',	'nitrogen dioxide'],
+        [8,	'bap',	'benzo(a)pyrene'],
+        [9,	'c6h6',	'benzene'],
+        [10, 'pm10',	'particulate matter 10'],
+        [11,	'nox',	'nitrous oxides'],
+        [14, 'o3',	'ozone'],
+        [15,	'pm25',	'particulate matter 2.5'],
+        [17,	'nh3',	'ammonia'],
+        [98,	'fno2',	'nitryl fluoride'],
+        [99,	'cop98',	'carbon monoxide 98th percentile'],
+        [101,	'NOy',	'sum of all oxidized atmospheric odd-nitrogen species'],
+        [102,	'NHx',	'all ammonia reduction levels'],
+        [201,	'N',	'nitrogen'],
+        [18,	'ec',	'elemental carbon'],
+        [1711, 'ndep', 'nitrogen deposition'],
+        [1000, 'adep', 'acid deposition']
+        ])
+
+    table = Table()
+    table.data = pd.DataFrame(
+        all_sub, columns=['substance_id', 'name', 'description']
+        )
+    table.name = 'substances'
+    return(table)
+
+
+def create_table_example_authorities():
+    '''Creates the substance table. Takes no argument and returns a df'''
+    print('lib_database_create_script+create_table_example_authorities')
+    # Data frame created like this to link the id with name
+    # we dont want them getting mixed as more are added or taken away
+    all_sub = np.array([
+        [1003, 4, 'City of Belfast',	'City of Belfast', 'unknown'],
+        [1015, 1, 'Bedford (B)',	'Bedford (B)', 'unknown'],
+        [1108, 3, 'Gwynedd - Gwynedd', 'Gwynedd - Gwynedd', 'unknown'],
+        [1165, 2, 'Shetland Islands',	'Shetland Islands',	'unknown']
+        ])
+
+    return(pd.DataFrame(
+        all_sub,
+        columns=['authority_id', 'country_id', 'code', 'name', 'type']
+        ))
+
+
+def create_table_countries():
+    '''Creates the table for countries, all manually put entered'''
+    print('lib_database_create_script+create_table_countries')
+    all_sub = np.array([[1, 'E', 'England'],
+                        [2, 'S', 'Scotland'],
+                        [3, 'W', 'Wales'],
+                        [4, 'N', 'Northern Ireland'],
+                        [5, 'SE', 'Scotland/England'],
+                        [6, 'WE', 'Wales/England']])
+
+    table = Table()
+    table.data = pd.DataFrame(all_sub,
+                              columns=['country_id', 'code', 'name'])
+    table.name = 'countries'
+    return(table)
+
+
+from pathlib import Path
+
+
+class Table():
+    """Exporter for data structures into txt files for db.
+    Input the overall output path
+    """
+
+    def __init__(self):
+        print('export_script+__init__')
+        self.name = None
+        self.data = None
+
+    def export_data(self, filepath):
+        print('export_script+export_data')
+        # errors for missing name and data
+
+        root = f'./output/{filepath}/'
+        print(f'Exporting file {self.name} to {root}\n')
+        Path(root).mkdir(parents=True, exist_ok=True)
+        self.data.to_csv(f'{root}/{self.name}.txt', sep='\t', index=False)
+
+
+
 import unicodedata
 # from os import sep  # for finding the name of the function to pass as errors
 
@@ -12,12 +328,8 @@ import geopandas as gpd
 # used for checking purposes sometimes
 # import matplotlib.pyplot as plt
 
-from .lib_database_create import get_substance_id
-from .lib_database_create import _create_id_col
-from .lib_database_create import _convert_id
-from .lib_database_create import _create_dictionary_from_df
-from .lib_database_create import create_table_countries
-from .export import Table
+
+
 
 ########################################################################
 # global variables
@@ -30,9 +342,9 @@ links = './data/linkages_table/feature_contry_v2.csv'
 
 lpa_shape = './data/Local_Planning_Authorities/Local_Planning_Authorities_(April_2019)_UK_BUC.shp'
 
-sac_shape = './data/Sites/ SAC_BNG.shp'
-spa_shape = './data/Sites/ SPA_BNG.shp'
-sssi_shape = './data/Sites/ SSSI_BNG.shp'
+sac_shape = './data/Sites/SAC_BNG.shp'
+spa_shape = './data/Sites/SPA_BNG.shp'
+sssi_shape = './data/Sites/SSSI_BNG.shp'
 
 substance_rename = {
     'NDEP_LEVEL': get_substance_id('ndep'),
@@ -61,7 +373,6 @@ def import_feat_sens(file_name=critical_levels, tab_name=levels_tab):
     '''boilerplate for extracting a useful dataframe from the linkages
     excel file
     '''
-
     df = pd.read_excel(file_name, tab_name)
     # sorting by feture to create a consistent id set
     df = df.sort_values('INTERESTCODE')
@@ -76,8 +387,8 @@ def import_feat_sens(file_name=critical_levels, tab_name=levels_tab):
 
 def clean_feat(df):
     '''takes the imported features and sensitivity data and cleans it'''
-
     def _norm_code_col(val):
+        print('_norm_code_col')
         return(unicodedata.normalize("NFKD", val))
 
     # getting rid of the \x0 characters
@@ -94,7 +405,6 @@ def make_feat_codes(df):
     '''takes the cleaned features data and cretes codes to use instead
     of the long descriptions of the habitat
     '''
-
     # There are some invalid eunis codes in the data which need to be
     # converted to out null code (000)
     df["EUNISCODE"].replace({
@@ -143,7 +453,6 @@ def _unstack_sens_data(df, colname):
     in a new col. the names are then converted to a substance id
     using a dictionary
     '''
-
     id_string = 'habitat_type_id'
 
     df.set_index(id_string, inplace=True)
@@ -161,7 +470,6 @@ def _unstack_sens_data(df, colname):
 
 def import_sites_from_shape():
     '''importing the shapefiles for the SAC/SPA and SSSI sites'''
-
     df_sac = gpd.read_file(sac_shape)
     df_sac['design_status_description'] = 'SAC'
     # FIXME keeping the double country info rather than dropping it
@@ -190,7 +498,6 @@ def get_lpa_geoms(df_sites, lpa_path=lpa_shape):
     polygons and assigns an lpa for each site. also removes the
     ones with no lpa as these are offshore
     '''
-
     # if the table is read from txt rather than file
     # def make_shapely(df):
     #     return(shapely.wkt.loads(df['geometry']))
@@ -202,7 +509,6 @@ def get_lpa_geoms(df_sites, lpa_path=lpa_shape):
     lpa_tree = STRtree(df_lpa['geometry'].tolist())
 
     def find_lpas(df_site_r):
-
         # The version where the geomshape is made from text
         # site_geom = df_site_r['geom_shape']
         site_geom = df_site_r['geometry']
@@ -239,7 +545,6 @@ def get_lpa_geoms(df_sites, lpa_path=lpa_shape):
 
 def import_links(links_file=links):
     '''importing the links between site and feature'''
-
     df = pd.read_csv(links_file)
     # sites with no country are offshore
     df = df[df['COUNTRY'].notna()]
@@ -251,7 +556,6 @@ def setup_natura_tables():
     '''this sets up the natura tables - the resulting df is
     editted for the natura2000_areas and the natura2000_directive_areas
     table'''
-
     df_site = import_sites_from_shape()
     df_site = get_lpa_geoms(df_site)
 
@@ -359,7 +663,6 @@ def create_table_habitat_type_critical_levels():
     '''creates the table habitat type critical levels from the features
     excel file
     '''
-
     df = import_feat_sens()
     df = clean_feat(df)
     df = make_feat_codes(df)
@@ -433,7 +736,6 @@ def create_table_habitat_type_critical_levels():
 
 def create_table_authorities(path):
     '''creates the table for the authorities from the shapefiles'''
-
     df_lpa = gpd.read_file(path)
 
     df_lpa['country_id'] = [x[0] for x in df_lpa['lpa19cd']]
@@ -460,7 +762,6 @@ def create_table_authorities(path):
 def create_table_habitat_areas():
     '''creates the table for the habitat areas from the links file as well
     as the geoms from the natura table'''
-
     df_l = import_links()
 
     df_f = import_feat_sens()
@@ -519,7 +820,6 @@ def create_table_natura2000_areas():
     '''just assigns the type as natura2000_area from the natura
     setup funtion
     '''
-
     df = setup_natura_tables()
 
     df['type'] = 'natura2000_area'
@@ -535,7 +835,6 @@ def create_table_natura2000_areas():
 def create_table_natura2000_directives():
     '''there are only four options currently for the types of site
     and these have specific species and habitat directives'''
-
     # Data frame created like this to link the id with name
     # we dont want them getting mixed as more are added or taken away
     all_sub = np.array([
@@ -557,7 +856,6 @@ def create_table_natura2000_directives():
 
 
 def create_table_natura2000_directive_areas():
-
     df = setup_natura_tables()
     df['type'] = 'natura2000_directive_area'
 
@@ -584,7 +882,6 @@ def create_table_natura2000_directive_areas():
 
 def create_table_habitat_types():
     '''creates habitat types table from the features file'''
-
     df_feat = import_feat_sens()
     df_feat = clean_feat(df_feat)
     df_feat = make_feat_codes(df_feat)
@@ -593,3 +890,9 @@ def create_table_habitat_types():
     table.data = df_feat[['habitat_type_id', 'name', 'description']]
     table.name = 'habitat_types'
     return(table)
+
+
+
+
+
+

@@ -7,12 +7,10 @@ class Table():
     """
 
     def __init__(self):
-
         self.name = None
         self.data = None
 
     def export_data(self, filepath):
-
         # errors for missing name and data
 
         root = f'./output/{filepath}/'

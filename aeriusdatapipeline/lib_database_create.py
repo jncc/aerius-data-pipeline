@@ -15,7 +15,6 @@ def _create_dictionary_from_df(df):
     Takes a dictionary with only two columns as argument. The first col
     will be the keys, the second will be the values
     '''
-
     df = df.drop_duplicates()
     # creating the dictionary from the two columns of the dataframe
     # to use to_dict, the index should be the keys
@@ -27,7 +26,6 @@ def _create_dictionary_from_df(df):
 
 def _create_id_col(df, id_colname):
     '''creates a column for the db tables with a unique ID'''
-
     # _check_unique_rows(df)
 
     df = df.drop_duplicates()
@@ -40,7 +38,6 @@ def _create_id_col(df, id_colname):
 
 def _convert_id(df_col, rename):
     '''converts colnames into substanc_id with dictionary'''
-
     for colname, substance_id in rename.items():
         df_col = df_col.replace(colname, substance_id)
     return(df_col)
@@ -54,7 +51,6 @@ def _check_unique_rows(df):
     '''Checking that the dataframe has unique IDs (the individual rows
     in the postgresDB)
     '''
-
     cols = list(df.columns)
     # if these are the same then all rows are unique IDs
     if df.shape[0] == df.groupby(cols).ngroups:
@@ -86,7 +82,6 @@ def get_substance_id(name):
 
 def create_table_substances():
     '''Creates the substance table. Takes no argument and returns a df'''
-
     # Data frame created like this to link the id with name
     # we dont want them getting mixed as more are added or taken away
     all_sub = np.array([
@@ -121,7 +116,6 @@ def create_table_substances():
 
 def create_table_example_authorities():
     '''Creates the substance table. Takes no argument and returns a df'''
-
     # Data frame created like this to link the id with name
     # we dont want them getting mixed as more are added or taken away
     all_sub = np.array([
@@ -139,7 +133,6 @@ def create_table_example_authorities():
 
 def create_table_countries():
     '''Creates the table for countries, all manually put entered'''
-
     all_sub = np.array([[1, 'E', 'England'],
                         [2, 'S', 'Scotland'],
                         [3, 'W', 'Wales'],
