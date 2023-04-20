@@ -11,7 +11,7 @@ pd.options.mode.chained_assignment = None
 nox_path = './data/Road-emissions/final/nox.xlsx'
 nh3_path = './data/Road-emissions/final/road_emissions_nh3.xlsx'
 hdv_path = './data/Road-emissions/final/hdv.xlsx'
-
+diurnal_path = './data/Road-emissions/final/tra0307.xlsx'
 
 def expand_feature(df, name, expansion_list):
     '''the nh3 data doesn't vary by speed or gradient so doesnt have
@@ -379,4 +379,151 @@ def create_table_road_category_emission_factors():
     table.data = df_final[['road_category_id', 'year', 'substance_id',
                            'emission_factor', 'stagnated_emission_factor']]
     table.name = 'road_category_emission_factors'
+    return(table)
+
+def create_table_standard_diurnal_variation_profiles(years):
+    '''creates the diurnal road profiles table'''
+
+    # convert years to str
+    years = [ str(x) for x in years ]
+
+    # create the entries for each year
+    standard_diurnal_variation_profile_id=[]
+    code=[]
+    name=[]
+    description=[]
+    for i in years:
+        standard_diurnal_variation_profile_id.append(i)
+        code.append('UK_ROAD_'+i)
+        name.append('UK road '+i)
+        description.append('Motor vehicle traffic distribution on all roads, Great Britain: '+i)
+
+    # construct dataframe
+    standard_diurnal_variation_profiles = pd.DataFrame(
+        {'standard_diurnal_variation_profile_id': standard_diurnal_variation_profile_id,
+         'code': code,
+         'name': name,
+         'description': description
+         })
+
+    # create table
+    table = adp.Table()
+    table.data = standard_diurnal_variation_profiles
+    table.name = 'standard_diurnal_variation_profiles'
+    return(table)
+
+def create_table_standard_diurnal_variation_profiles_values(years):
+    '''creates the diurnal road profiles values table'''
+    # make all values ints
+    years = [ int(x) for x in years]
+
+    # read in the diurnal profiles csv
+    diurnal_profiles = pd.read_excel(diurnal_path, sheet_name='TRA0307', skiprows=[0,1,2,3])
+
+    # loop through columns to strip spaces from names
+    for i in range(0,len(diurnal_profiles.columns)):
+        name=diurnal_profiles.columns[i].strip()
+        diurnal_profiles.rename(columns={ diurnal_profiles.columns[i]: name }, inplace = True)
+
+    # subset only required years
+    diurnal_profiles=diurnal_profiles[diurnal_profiles['Year'].isin(years)]
+
+    # make empty dataframe to populate
+    standard_diurnal_variation_profile_values =pd.DataFrame()
+
+    # loop through each year
+    count=0
+    for i in years:
+        count +=1
+        #subste current year
+        year_cut = diurnal_profiles[diurnal_profiles['Year']==i]
+        # calculate relative values
+        total=(year_cut[['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']].sum().sum())
+        year_cut['relative_monday']=(year_cut['Monday']*168)/total
+        year_cut['relative_tuesday']=(year_cut['Tuesday']*168)/total
+        year_cut['relative_wednesday']=(year_cut['Wednesday']*168)/total
+        year_cut['relative_thursday']=(year_cut['Thursday']*168)/total
+        year_cut['relative_friday']=(year_cut['Friday']*168)/total
+        year_cut['relative_saturday']=(year_cut['Saturday']*168)/total
+        year_cut['relative_sunday']=(year_cut['Sunday']*168)/total
+        # average weekdays
+        year_cut['weekday_average']=(year_cut['relative_monday']+year_cut['relative_tuesday']+year_cut['relative_wednesday']+
+                                     year_cut['relative_thursday']+year_cut['relative_friday'])/5
+
+        # extract weekend
+        year_cut_weekend=pd.DataFrame(year_cut['weekday_average'])
+        year_cut_weekend.rename(columns={'weekday_average':'value'}, inplace=True)
+
+        # extract saturdays
+        year_cut_saturday=pd.DataFrame(year_cut['relative_saturday'])
+        year_cut_saturday.rename(columns={'relative_saturday':'value'}, inplace=True)
+
+        # extract sundays
+        year_cut_sunday=pd.DataFrame(year_cut['relative_sunday'])
+        year_cut_sunday.rename(columns={'relative_sunday':'value'}, inplace=True)
+
+        #  group these
+        year_cut_final=pd.concat([year_cut_weekend, year_cut_saturday], ignore_index=True)
+        year_cut_final=pd.concat([year_cut_final, year_cut_sunday], ignore_index=True)
+
+        # reset index
+        year_cut_final.index = np.arange(1, len(year_cut_final) + 1)
+        year_cut_final['standard_diurnal_variation_profile_id']=count
+        year_cut_final['value_index']=year_cut_final.index
+
+    # reorder columns
+        year_cut_final=year_cut_final[['standard_diurnal_variation_profile_id','value_index','value']]
+
+        # group outputs
+        standard_diurnal_variation_profile_values=pd.concat([standard_diurnal_variation_profile_values, year_cut_final], ignore_index=True)
+
+        # create table
+    table = adp.Table()
+    table.data = standard_diurnal_variation_profile_values
+    table.name = 'standard_diurnal_variation_profile_values'
+    return(table)
+
+
+def create_table_sector_default_diurnal_variation_profiles():
+    '''creates the default diurnal variation profile table'''
+
+    # construct dataframe
+    sector_default_diurnal_variation_profiles  = pd.DataFrame(
+        {'sector_id': [3100],
+         'code': ['UK_ROAD_2019']
+         })
+
+    # create table
+    table = adp.Table()
+    table.data = sector_default_diurnal_variation_profiles
+    table.name = 'sector_default_diurnal_variation_profiles'
+    return(table)
+
+
+def create_table_sector_year_default_diurnal_variation_profiles(years):
+    '''creates the default diurnal variation profile table'''
+
+    # convert years to str
+    years = [ str(x) for x in years ]
+
+    # create the entries for each year
+    sector_id=[]
+    year=[]
+    code=[]
+    for i in years:
+        sector_id.append(3100)
+        year.append(i)
+        code.append('UK_ROAD_'+i)
+
+    # construct dataframe
+    sector_year_default_diurnal_variation_profiles = pd.DataFrame(
+        {'sector_id': sector_id,
+         'year': year,
+         'code': code
+         })
+
+    # create table
+    table = adp.Table()
+    table.data = sector_year_default_diurnal_variation_profiles
+    table.name = 'sector_year_default_diurnal_variation_profiles'
     return(table)

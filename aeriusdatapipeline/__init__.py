@@ -29,6 +29,10 @@ from .road_emissions import create_table_road_areas_to_road_types
 from .road_emissions import create_table_road_types_to_speed_profiles
 from .road_emissions import create_table_road_categories
 from .road_emissions import create_table_road_category_emission_factors
+from .road_emissions import create_table_standard_diurnal_variation_profiles
+from .road_emissions import create_table_standard_diurnal_variation_profiles_values
+from .road_emissions import create_table_sector_default_diurnal_variation_profiles
+from .road_emissions import create_table_sector_year_default_diurnal_variation_profiles
 
 # The functions used by the modules
 # loaded here so the module can be loaded by tests
