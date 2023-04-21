@@ -392,8 +392,10 @@ def create_table_standard_diurnal_variation_profiles(years):
     code=[]
     name=[]
     description=[]
+    count=0
     for i in years:
-        standard_diurnal_variation_profile_id.append(i)
+        count +=1
+        standard_diurnal_variation_profile_id.append(count)
         code.append('UK_ROAD_'+i)
         name.append('UK road '+i)
         description.append('Motor vehicle traffic distribution on all roads, Great Britain: '+i)
