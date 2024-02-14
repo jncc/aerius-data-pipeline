@@ -83,7 +83,6 @@ def convert_100_to_vehicle(df):
     # TODO improve this so no ifs. replace 100 with col name + add all
     # cols together
     def get_vehicle_type(df_sub):
-        print('road_emmission_script+get_vehicle_type')
         '''converts the 100% to the name of the vehicle in the data'''
         if df_sub['Car'] == 100.0:
             return('Car')
@@ -129,7 +128,6 @@ def _make_code(df_code):
     suffix for duplicate codes
     '''
     def _code_start(row):
-        print('_code_start')
         '''takes the first three letters to make the code'''
         return(row['name'][0:3])
 
@@ -492,7 +490,7 @@ def create_table_sector_default_diurnal_variation_profiles():
     # construct dataframe
     sector_default_diurnal_variation_profiles  = pd.DataFrame(
         {'sector_id': [3100],
-         'code': ['UK_ROAD_2019']
+         'code': ['UK_ROAD_2022']
          })
 
     # create table

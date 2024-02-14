@@ -4,7 +4,6 @@ def _create_dictionary_from_df(df):
     Takes a dictionary with only two columns as argument. The first col
     will be the keys, the second will be the values
     '''
-    print('lib_database_create_script+_create_dictionary_from_df')
     df = df.drop_duplicates()
     # creating the dictionary from the two columns of the dataframe
     # to use to_dict, the index should be the keys
@@ -16,7 +15,6 @@ def _create_dictionary_from_df(df):
 
 def _create_id_col(df, id_colname):
     '''creates a column for the db tables with a unique ID'''
-    print('lib_database_create_script+_create_id_col')
     # _check_unique_rows(df)
 
     df = df.drop_duplicates()
@@ -29,7 +27,6 @@ def _create_id_col(df, id_colname):
 
 def _convert_id(df_col, rename):
     '''converts colnames into substanc_id with dictionary'''
-    print('lib_database_create_script+_convert_id')
     for colname, substance_id in rename.items():
         df_col = df_col.replace(colname, substance_id)
     return(df_col)
@@ -43,7 +40,6 @@ def _check_unique_rows(df):
     '''Checking that the dataframe has unique IDs (the individual rows
     in the postgresDB)
     '''
-    print('lib_database_create_script+_check_unique_rows')
     cols = list(df.columns)
     # if these are the same then all rows are unique IDs
     if df.shape[0] == df.groupby(cols).ngroups:
@@ -62,12 +58,10 @@ def _check_unique_rows(df):
 
 
 def get_id(df, col_ref, col_id, name):
-    print('lib_database_create_script+get_id')
     return(df.loc[df[col_ref] == name, col_id].values[0])
 
 
 def get_substance_id(name):
-    print('lib_database_create_script+get_substance_id')
     '''a way to consistently get the right substance id'''
     df = create_table_substances().data
     return(df.loc[df['name'] == name, 'substance_id'].values[0])
@@ -77,7 +71,6 @@ def get_substance_id(name):
 
 def create_table_substances():
     '''Creates the substance table. Takes no argument and returns a df'''
-    print('lib_database_create_script+create_table_substances')
     # Data frame created like this to link the id with name
     # we dont want them getting mixed as more are added or taken away
     all_sub = np.array([
@@ -112,7 +105,6 @@ def create_table_substances():
 
 def create_table_example_authorities():
     '''Creates the substance table. Takes no argument and returns a df'''
-    print('lib_database_create_script+create_table_example_authorities')
     # Data frame created like this to link the id with name
     # we dont want them getting mixed as more are added or taken away
     all_sub = np.array([
@@ -130,7 +122,6 @@ def create_table_example_authorities():
 
 def create_table_countries():
     '''Creates the table for countries, all manually put entered'''
-    print('lib_database_create_script+create_table_countries')
     all_sub = np.array([[1, 'E', 'England'],
                         [2, 'S', 'Scotland'],
                         [3, 'W', 'Wales'],
@@ -149,7 +140,6 @@ def _create_dictionary_from_df(df):
     Takes a dictionary with only two columns as argument. The first col
     will be the keys, the second will be the values
     '''
-    print('lib_database_create_script+_create_dictionary_from_df')
     df = df.drop_duplicates()
     # creating the dictionary from the two columns of the dataframe
     # to use to_dict, the index should be the keys
@@ -161,7 +151,6 @@ def _create_dictionary_from_df(df):
 
 def _create_id_col(df, id_colname):
     '''creates a column for the db tables with a unique ID'''
-    print('lib_database_create_script+_create_id_col')
     # _check_unique_rows(df)
 
     df = df.drop_duplicates()
@@ -174,7 +163,6 @@ def _create_id_col(df, id_colname):
 
 def _convert_id(df_col, rename):
     '''converts colnames into substanc_id with dictionary'''
-    print('lib_database_create_script+_convert_id')
     for colname, substance_id in rename.items():
         df_col = df_col.replace(colname, substance_id)
     return(df_col)
@@ -188,7 +176,6 @@ def _check_unique_rows(df):
     '''Checking that the dataframe has unique IDs (the individual rows
     in the postgresDB)
     '''
-    print('lib_database_create_script+_check_unique_rows')
     cols = list(df.columns)
     # if these are the same then all rows are unique IDs
     if df.shape[0] == df.groupby(cols).ngroups:
@@ -207,12 +194,10 @@ def _check_unique_rows(df):
 
 
 def get_id(df, col_ref, col_id, name):
-    print('lib_database_create_script+get_id')
     return(df.loc[df[col_ref] == name, col_id].values[0])
 
 
 def get_substance_id(name):
-    print('lib_database_create_script+get_substance_id')
     '''a way to consistently get the right substance id'''
     df = create_table_substances().data
     return(df.loc[df['name'] == name, 'substance_id'].values[0])
@@ -222,7 +207,6 @@ def get_substance_id(name):
 
 def create_table_substances():
     '''Creates the substance table. Takes no argument and returns a df'''
-    print('lib_database_create_script+create_table_substances')
     # Data frame created like this to link the id with name
     # we dont want them getting mixed as more are added or taken away
     all_sub = np.array([
@@ -257,7 +241,6 @@ def create_table_substances():
 
 def create_table_example_authorities():
     '''Creates the substance table. Takes no argument and returns a df'''
-    print('lib_database_create_script+create_table_example_authorities')
     # Data frame created like this to link the id with name
     # we dont want them getting mixed as more are added or taken away
     all_sub = np.array([
@@ -275,7 +258,6 @@ def create_table_example_authorities():
 
 def create_table_countries():
     '''Creates the table for countries, all manually put entered'''
-    print('lib_database_create_script+create_table_countries')
     all_sub = np.array([[1, 'E', 'England'],
                         [2, 'S', 'Scotland'],
                         [3, 'W', 'Wales'],
@@ -299,12 +281,10 @@ class Table():
     """
 
     def __init__(self):
-        print('export_script+__init__')
         self.name = None
         self.data = None
 
     def export_data(self, filepath):
-        print('export_script+export_data')
         # errors for missing name and data
 
         root = f'./output/{filepath}/'
@@ -336,9 +316,12 @@ import geopandas as gpd
 ########################################################################
 
 data = "./data/linkages_table/"
-critical_levels = "./data/linkages_table/APIS-interest-feature-critical-load-linkages_simplBB.xlsx"
-levels_tab = "LINKAGES-FEATURE to CLOADS"
+critical_levels_SPA = "./data/linkages_table/APIS_SPA_feature_critical_load_level_linkages.csv"
+critical_levels_SAC = "./data/linkages_table/APIS_SAC_feature_critical_load_level_linkages.csv"
+critical_levels_SSSI = "./data/linkages_table/APIS_SSSI_feature_critical_load_level_linkages.csv"
 links = './data/linkages_table/feature_contry_v2.csv'
+
+reason_table='./data/linkages_table/reason_table.csv'
 
 lpa_shape = './data/Local_Planning_Authorities/Local_Planning_Authorities_(April_2019)_UK_BUC.shp'
 
@@ -348,20 +331,21 @@ sssi_shape = './data/Sites/SSSI_BNG.shp'
 
 substance_rename = {
     'NDEP_LEVEL': get_substance_id('ndep'),
-    'SPECIESSENSITIVITYN': get_substance_id('ndep'),
-    'SPECIESSENSITIVEN': get_substance_id('ndep'),
+    'ndep_sensitivity': get_substance_id('ndep'),
+    'ndep_sensitivity_reason':get_substance_id('ndep'),
+    'ndep_sensitivity_reason_secondary':get_substance_id('ndep'),
     'ACCODE': get_substance_id('adep'),
     'SPECIESSENSITIVITYA': get_substance_id('adep'),
     'SPECIESSENSITIVEA': get_substance_id('adep'),
-    'NH3_CLEVEL': get_substance_id('nh3'),
-    'JUSTIF_SPECIES_SENSITIVE_NH3': get_substance_id('nh3'),
-    'SPECIES_SENSITIVE_NH3': get_substance_id('nh3'),
-    'NOX_CLEVEL': get_substance_id('nox'),
-    'JUSTIF_SPECIES_SENSITIVE_NOX': get_substance_id('nox'),
-    'SPECIES_SENSITIVE_NOX': get_substance_id('nox'),
-    'SO2_CLEVEL': get_substance_id('so2'),
-    'JUSTIF_SPECIES_SENSITIVE_SO2': get_substance_id('so2'),
-    'SPECIES_SENSITIVE_SO2': get_substance_id('so2')
+    'AMMONIA_CL_VALUE': get_substance_id('nh3'),
+    'nh3_sensitivity': get_substance_id('nh3'),
+    'nh3_sensitivity_reason': get_substance_id('nh3'),
+    'nh3_sensitivity_reason_secondary': get_substance_id('nh3'),
+    'NITROGEN_DIOXIDE_CL_VALUE': get_substance_id('nox'),
+    'nox_sensitivity': get_substance_id('nox'),
+    'nox_sensitivity_reason': get_substance_id('nox'),
+    'nox_sensitivity_reason_secondary': get_substance_id('nox')
+
 }
 
 ########################################################################
@@ -369,11 +353,19 @@ substance_rename = {
 ########################################################################
 
 
-def import_feat_sens(file_name=critical_levels, tab_name=levels_tab):
+def import_feat_sens(SPA_file_name=critical_levels_SPA, SAC_file_name=critical_levels_SAC, SSSI_file_name=critical_levels_SSSI):
     '''boilerplate for extracting a useful dataframe from the linkages
     excel file
     '''
-    df = pd.read_excel(file_name, tab_name)
+
+
+    df_SPA = pd.read_csv(SPA_file_name,encoding='unicode_escape')
+    df_SAC = pd.read_csv(SAC_file_name,encoding='unicode_escape')
+    df_SSSI = pd.read_csv(SSSI_file_name,encoding='unicode_escape')
+
+    df=df_SPA.append(df_SAC)
+    df=df_SPA.append(df_SSSI)
+
     # sorting by feture to create a consistent id set
     df = df.sort_values('INTERESTCODE')
     # There are duplicate rows in the linkages table
@@ -388,7 +380,6 @@ def import_feat_sens(file_name=critical_levels, tab_name=levels_tab):
 def clean_feat(df):
     '''takes the imported features and sensitivity data and cleans it'''
     def _norm_code_col(val):
-        print('_norm_code_col')
         return(unicodedata.normalize("NFKD", val))
 
     # getting rid of the \x0 characters
@@ -407,7 +398,7 @@ def make_feat_codes(df):
     '''
     # There are some invalid eunis codes in the data which need to be
     # converted to out null code (000)
-    df["EUNISCODE"].replace({
+    df["EUNIS"].replace({
         "nan": 'EU000', 'D2 f': 'D2', 'information to be added': 'EU000',
         "Broad-leaved, mixed and yew woodland (Scrub - Pteridium aquilinum-\
                                         Rubus fruticosus underscrub)": 'EU000',
@@ -430,12 +421,13 @@ def make_feat_codes(df):
     df["NVC_CODE"].replace(nvc_rename, inplace=True)
 
     # combining all the codes for the description
-    df['description'] = df['HABITATCODE'] + ':' + df['NVC_CODE'] + ':'\
-        + df['EUNISCODE'] + ':' + df['NCLCODE'] + ':' + df['ACCODE']
+    df['description'] = df['BROAD_HABITATCODE'] + ':' + df['NVC_CODE'] + ':'\
+        + df['EUNIS'] + ':' + df['NCLCODE'] + ':' + df['ACCODE']
 
     # this is the name that we will use. the combo of name still
     # gives some duplicates so we have a numbering system
     df['name'] = df['INTERESTLAYNAME'] + ' - ' + df['INTERESTTYPE']
+
     df['name'] = df['name'].str.replace(' - Habitat', '')
     g = df.groupby('name')
     # adds the number next to the name
@@ -653,6 +645,118 @@ def site_specific_geoms():
 
     return(df_full)
 
+def clean_critical_loads_and_levels(df):
+
+ 
+
+    # split out those that will be fixed and those that won't
+
+
+
+    df['AMMONIA_CL_VALUE']=df['AMMONIA_CL_VALUE'].fillna('')
+    df['AMMONIA_CL_VALUE']=df['AMMONIA_CL_VALUE'].replace({'nan':''})
+    df['AMMONIA_CL_VALUE'] = df['AMMONIA_CL_VALUE'].str.split(' to ').str[0]
+    df['AMMONIA_CL_VALUE'] = df['AMMONIA_CL_VALUE'].str.split(' or ').str[0]
+
+    df['NITROGEN_DIOXIDE_CL_VALUE']=df['NITROGEN_DIOXIDE_CL_VALUE'].fillna('')
+    df['NITROGEN_DIOXIDE_CL_VALUE']=df['NITROGEN_DIOXIDE_CL_VALUE'].replace({'nan':''})
+    df['NITROGEN_DIOXIDE_CL_VALUE'] = df['NITROGEN_DIOXIDE_CL_VALUE'].str.split(' to ').str[0]
+    df['NITROGEN_DIOXIDE_CL_VALUE'] = df['NITROGEN_DIOXIDE_CL_VALUE'].str.split(' or ').str[0]
+
+
+    return(df)
+
+def output_sensitivity(df):
+   
+    nonspecieslist=['Habitat','Habitat (site specific)','Fungus','Lichen','Lichen assemblage','Liverwort','Moss','Non vascular plant','Stonewort','Vascular plant']
+
+    df_species=df[~df['INTERESTTYPE'].isin(nonspecieslist)]
+    df_not_species=df[df['INTERESTTYPE'].isin(nonspecieslist)]
+
+    # species
+    # if sensitiivty is site specific or not assesed, set value to null to tigger tool logic and sset as sensitive
+    df_species.loc[df_species['SPECIESSENSITIVEN'] == 'Site specific', 'NDEP_LEVEL'] = ''
+    df_species['ndep_sensitivity']=df_species['SPECIESSENSITIVEN']
+    df_species['ndep_sensitivity']=df_species['ndep_sensitivity'].replace(["Yes", "No","Site specific"], ["t", "f","t"])
+    df_species['ndep_sensitivity_reason']=df_species['SPECIESSENSITIVITYN']
+
+    df_species['ndep_sensitivity_reason_secondary']=df_species['JUSTIFYSPECIESSENSITIVITYN']
+
+    df_species.loc[df_species['SPECIES_SENSITIVE_NH3'] == 'Site specific', 'AMMONIA_CL_VALUE'] = ''
+    df_species['nh3_sensitivity']=df_species['SPECIES_SENSITIVE_NH3']
+    df_species['nh3_sensitivity']=df_species['nh3_sensitivity'].replace(["Yes", "No","Site specific"], ["t", "f","t"])
+    df_species['nh3_sensitivity_reason']=df_species['JUSTIF_SPECIES_SENSITIVE_NH3']
+    df_species['nh3_sensitivity_reason_secondary']=df_species['SPECIES_SENSITIVE_NH3_TEXT']
+
+    df_species.loc[df_species['SPECIES_SENSITIVE_NOX'] == 'Site specific', 'NITROGEN_DIOXIDE_CL_VALUE'] = ''
+    df_species['nox_sensitivity']=df_species['SPECIES_SENSITIVE_NOX']
+    df_species['nox_sensitivity']=df_species['nox_sensitivity'].replace(["Yes", "No","Site specific"], ["t", "f","t"])
+    df_species['nox_sensitivity_reason']=df_species['JUSTIF_SPECIES_SENSITIVE_NOX']
+    df_species['nox_sensitivity_reason_secondary']=df_species['SPECIES_SENSITIVE_NOX_TEXT']
+
+   
+
+    # non species
+    # if sensitiivty is site specific or not assesed, set value to null to tigger tool logic and sset as sensitive
+    df_not_species.loc[df_not_species['SENSITIVENDEP'] == 'Not assessed for this feature', 'NDEP_LEVEL'] = ''
+    df_not_species.loc[df_not_species['SENSITIVENDEP'] == 'Site specific', 'NDEP_LEVEL'] = ''
+
+    df_not_species['ndep_sensitivity']=df_not_species['SENSITIVENDEP']
+    df_not_species['ndep_sensitivity']=df_not_species['ndep_sensitivity'].replace(["Yes", "No","Not assessed for this feature","Site specific"], ["t", "f","t","t"])
+
+    df_not_species['ndep_sensitivity_reason']=df_not_species['NCLCLASS']
+
+    # if no value then not sensitive
+    df_not_species.loc[df_not_species['AMMONIA_CL_VALUE'] == '', 'nh3_sensitivity'] = 'f'
+    df_not_species.loc[df_not_species['AMMONIA_CL_VALUE'] != '', 'nh3_sensitivity'] = 't'
+
+    # where sentitive, if the text says site specific, set value to null to trigger tools rules
+    df_not_species.loc[(df_not_species['nh3_sensitivity'] == 't') & (df_not_species['AMMONIA_CL_TEXT']=='Site specific advice should be sought'), 'AMMONIA_CL_VALUE'] = ''
+    df_not_species['nh3_sensitivity_reason']=df_not_species['AMMONIA_CL_TEXT']
+
+
+        # if no value then not sensitive
+    df_not_species.loc[df_not_species['NITROGEN_DIOXIDE_CL_VALUE'] == '', 'nox_sensitivity'] = 'f'
+    df_not_species.loc[df_not_species['NITROGEN_DIOXIDE_CL_VALUE'] != '', 'nox_sensitivity'] = 't'
+
+    # where sentitive, if the text says site specific, set value to null to trigger tools rules
+    df_not_species.loc[(df_not_species['nox_sensitivity'] == 't') & (df_not_species['NITROGEN_DIOXIDE_CL_TEXT']=='Site specific advice should be sought'), 'NITROGEN_DIOXIDE_CL_VALUE'] = ''
+    df_not_species['nox_sensitivity_reason']=df_not_species['NITROGEN_DIOXIDE_CL_TEXT']
+
+    df_output=df_species.append(df_not_species)
+
+
+
+    return(df_output)
+
+def created_reason_codes(df):
+    reason_codes=pd.read_csv(reason_table)
+    reason_dict = dict(zip(reason_codes.description, reason_codes.id))
+
+    df['ndep_sensitivity_reason']=df['ndep_sensitivity_reason'].map(reason_dict).fillna('').astype(str)
+    df['ndep_sensitivity_reason_secondary']=df['ndep_sensitivity_reason_secondary'].map(reason_dict).fillna('').astype(str)
+    df['nh3_sensitivity_reason']=df['nh3_sensitivity_reason'].map(reason_dict).fillna('').astype(str)
+    df['nh3_sensitivity_reason_secondary']=df['nh3_sensitivity_reason_secondary'].map(reason_dict).fillna('').astype(str)
+    df['nox_sensitivity_reason']=df['nox_sensitivity_reason'].map(reason_dict).fillna('').astype(str)
+    df['nox_sensitivity_reason_secondary']=df['nox_sensitivity_reason_secondary'].map(reason_dict).fillna('').astype(str)
+
+
+    df['ndep_sensitivity_reason']=df['ndep_sensitivity_reason'].replace('.0', '', regex=True)
+    df['ndep_sensitivity_reason_secondary']=df['ndep_sensitivity_reason_secondary'].replace('.0', '', regex=True)
+
+    df['nh3_sensitivity_reason']=df['nh3_sensitivity_reason'].replace('.0', '', regex=True)
+    df['nh3_sensitivity_reason_secondary']=df['nh3_sensitivity_reason_secondary'].replace('.0', '', regex=True)
+
+
+    df['nox_sensitivity_reason']=df['nox_sensitivity_reason'].replace('.0', '', regex=True)
+    df['nox_sensitivity_reason_secondary']=df['nox_sensitivity_reason_secondary'].replace('.0', '', regex=True)
+    return(df)
+
+
+def generate_table_reason_codes():
+    reason_codes=pd.read_csv(reason_table)
+    reason_codes.columns=['critical_level_reason_id','description']
+    return(reason_codes)
 
 ########################################################################
 # Create table functions
@@ -669,61 +773,110 @@ def create_table_habitat_type_critical_levels():
 
     df['NDEP_LEVEL'] = df['CLMIN_NUTN'] + ' to ' + df['CLMAX_NUTN']
 
+    # generate the table with background types 
+    background_type=df[['habitat_type_id','DEPTYPE']]
+    deposition_type_dict={'S':'0','F':'1','M':'2','G':'3'}
+    background_type['DEPTYPE']=background_type['DEPTYPE'].map(deposition_type_dict)
+    background_type['type_id']=background_type['DEPTYPE']
+    background_type=background_type[['habitat_type_id','type_id']]
+
+    background_type_table=Table()
+    background_type_table.data=background_type
+    background_type_table.name='background_type'
+
+
+    # clean the critical loads values
+    df=clean_critical_loads_and_levels(df)
+
+    # set sensitivity at habitat or species level
+    df=output_sensitivity(df)
+
+    # change descriptions to their own table
+    df_reason_link_table=created_reason_codes(df)
+
+    df_reason1 = _unstack_sens_data(
+        df_reason_link_table[['habitat_type_id', 'ndep_sensitivity_reason','ndep_sensitivity_reason_secondary']],
+        'critical_level_reason_id'
+        )
+    df_reason1['result_type']='deposition'
+    df_reason2 = _unstack_sens_data(
+        df_reason_link_table[['habitat_type_id', 'nh3_sensitivity_reason','nh3_sensitivity_reason_secondary','nox_sensitivity_reason','nox_sensitivity_reason_secondary']],
+        'critical_level_reason_id'
+        )
+    df_reason2['result_type']='concentration'
+
+
+    df_reason_merge = df_reason1.append(df_reason2).sort_values(['habitat_type_id',
+                                             'critical_level_reason_id'])
+    df_reason_merge.reset_index(drop=True, inplace=True)
+    df_reason_merge['habitat_type_id'] = df_reason_merge['habitat_type_id']
+    df_reason_merge=df_reason_merge.drop_duplicates()
+    df_reason_merge['critical_level_reason_id'] = df_reason_merge['critical_level_reason_id'].replace('', np.nan)
+
+    df_reason_merge = df_reason_merge.dropna(axis=0, subset=['critical_level_reason_id'])
+
+    # generate table of reason codes
+    rc_table=generate_table_reason_codes()
+
+    table_reason_code=Table()
+    table_reason_code.data = rc_table
+    table_reason_code.name = 'critical_level_reasons'
+
     # unstack data turns the columns into a single column and the values
     # into the next column
     df_an1 = _unstack_sens_data(
-        df[['habitat_type_id', 'NDEP_LEVEL', 'ACCODE']], 'critical_level'
+        df[['habitat_type_id', 'NDEP_LEVEL']], 'critical_level'
         )
+        
     df_an2 = _unstack_sens_data(
-        df[['habitat_type_id', 'SPECIESSENSITIVEN', 'SPECIESSENSITIVEA']],
+        df[['habitat_type_id', 'ndep_sensitivity']],
         'sensitivity'
         )
+    
     df_an = pd.merge(df_an1, df_an2,
                      on=['habitat_type_id', 'substance_id'], how='outer')
     df_an['result_type'] = 'deposition'
 
     df_nns1 = _unstack_sens_data(
-        df[['habitat_type_id', 'NH3_CLEVEL', 'NOX_CLEVEL', 'SO2_CLEVEL']],
+        df[['habitat_type_id', 'AMMONIA_CL_VALUE', 'NITROGEN_DIOXIDE_CL_VALUE' ]],
         'critical_level'
         )
     df_nns2 = _unstack_sens_data(
-        df[['habitat_type_id', 'SPECIES_SENSITIVE_NH3',
-            'SPECIES_SENSITIVE_NOX', 'SPECIES_SENSITIVE_SO2']],
+        df[['habitat_type_id', 'nh3_sensitivity','nox_sensitivity']],
         'sensitivity'
         )
+
     df_nns = pd.merge(df_nns1, df_nns2,
                       on=['habitat_type_id', 'substance_id'], how='outer')
+
     df_nns['result_type'] = 'concentration'
 
     df_t = df_an.append(df_nns).sort_values(['habitat_type_id',
                                              'substance_id'])
     df_t.reset_index(drop=True, inplace=True)
 
-    # THIS IS THE CORRECT CODE!!!!!!!
-    # just the data doesn't have the info yet for habitats
-    # df_t['sensitivity'] = df_t['sensitivity'].replace({
-    #     'Site specific': 't',
-    #     'Yes': 't',
-    #     'No': 'f'
-    # })
-
-    # FIXME temporary fix until the data it right
-    df_t.loc[df_t['critical_level'] != 'nan', 'sensitivity'] = 't'
-    df_t.loc[df_t['critical_level'].isin(
-        ['nan', 'nan to nan']), 'sensitivity'] = 'f'
-
     # gets rid of the acid rows for now
     df_t = df_t[df_t['substance_id'] != get_substance_id('adep')]
+    df_t = df_t[df_t['substance_id'] != get_substance_id('so2')]
 
     # getting the first value from the range of loads/levels
     df_t['critical_range'] = df_t['critical_level']
     df_t['critical_level'] = df_t['critical_level'].str.split(' to ').str[0]
     df_t['critical_level'] = df_t['critical_level'].str.split(' or ').str[0]
 
+    df_t.loc[df_t['critical_level'] == 'nan', 'critical_level'] = ''
+
     df_t['sensitive'] = df_t['sensitivity']
     df_t['habitat_type_id'] = df_t['habitat_type_id']
 
-    df_t = df_t.loc[~df_t['substance_id'].isin([1000, '1000'])]
+    # temporary splitting whilst data incorrect
+    df_t_not_working=df_t[df_t['sensitive']=='nan']
+    df_t=df_t[df_t['sensitive']!='nan']
+
+
+    df_reason_merge = df_reason_merge.fillna('')
+
+    df_reason_merge
 
     table = Table()
     table.data = df_t[[
@@ -731,7 +884,21 @@ def create_table_habitat_type_critical_levels():
         'critical_level', 'sensitive'
         ]]
     table.name = 'habitat_type_critical_levels'
-    return(table)
+
+    table_notworking = Table()
+    table_notworking.data = df_t_not_working[[
+        'habitat_type_id', 'substance_id', 'result_type',
+        'critical_level', 'sensitive'
+        ]]
+    table_notworking.name = 'habitat_type_critical_levels_not_working'
+    
+    table_reason_link = Table()
+    table_reason_link.data = df_reason_merge[[
+        'habitat_type_id','substance_id','result_type','critical_level_reason_id'
+        ]]
+    table_reason_link.name = 'habitat_type_critical_level_reasons'
+
+    return(table,table_reason_code,table_notworking,table_reason_link,background_type_table)
 
 
 def create_table_authorities(path):
@@ -825,6 +992,8 @@ def create_table_natura2000_areas():
     df['type'] = 'natura2000_area'
     # df['type'] = df['design_status_description']
 
+    df['name']=df['name'].replace({'Carn â?? Glenshane Pass':'Carn/Glenshane Pass','MOELYCI A CHORS TYâ??N Y CAEAU':"MOELYCI A CHORS TY'N Y CAEAU"})
+
     table = Table()
     table.data = df[['assessment_area_id', 'type', 'name', 'code',
                      'authority_id', 'geometry', 'natura2000_area_id']]
@@ -858,6 +1027,8 @@ def create_table_natura2000_directives():
 def create_table_natura2000_directive_areas():
     df = setup_natura_tables()
     df['type'] = 'natura2000_directive_area'
+
+    df['name']=df['name'].replace({'Carn â?? Glenshane Pass':'Carn/Glenshane Pass','MOELYCI A CHORS TYâ??N Y CAEAU':"MOELYCI A CHORS TY'N Y CAEAU"})
 
     df_dir = create_table_natura2000_directives()
     df_a = pd.merge(df, df_dir.data, how='left',
