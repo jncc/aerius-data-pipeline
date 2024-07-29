@@ -363,7 +363,7 @@ def import_feat_sens(SPA_file_name=critical_levels_SPA, SAC_file_name=critical_l
     df_SAC = pd.read_csv(SAC_file_name,encoding='unicode_escape')
     df_SSSI = pd.read_csv(SSSI_file_name,encoding='unicode_escape')
 
-    df=df_SPA.append(df_SAC)
+    df_SPA=df_SPA.append(df_SAC)
     df=df_SPA.append(df_SSSI)
 
     # sorting by feture to create a consistent id set
